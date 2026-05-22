@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{
   --navy:#0B2B5C;--navy-light:#1e4a8a;
@@ -235,11 +234,7 @@ tbody tr:hover{background:rgba(200,164,21,.04);}
       <div class="form-tab" id="ft-in" data-form="in">🏠 ກັບຄືນ</div>
     </div>
     <div class="form-body" id="fb-out">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-        <button class="btn btn-navy" id="btn-scan-qr" style="padding:9px 18px;font-size:13px;display:flex;align-items:center;gap:8px;">
-          📷 ສະແກນ QR ລົດ
-        </button>
-      </div>
+
       <div class="form-grid">
         <div class="form-group"><label class="req">ທະບຽນລົດ</label><select id="o-plate"><option value="">— ເລືອກລົດ —</option></select></div>
         <div class="form-group"><label class="req">ວັນທີ / ເວລາອອກ</label><input type="datetime-local" id="o-dt"></div>
@@ -350,24 +345,6 @@ tbody tr:hover{background:rgba(200,164,21,.04);}
     </div>
   </div>
 </div>
-
-<!-- QR SCANNER MODAL -->
-<div class="overlay" id="ov-scanner">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-hdr">
-      <div class="modal-title">📷 ສະແກນ QR Code ລົດ</div>
-      <button class="modal-close" id="btn-close-scanner">✕</button>
-    </div>
-    <div class="modal-body" style="padding:16px;">
-      <div id="qr-reader" style="width:100%;"></div>
-      <div id="scan-status" style="font-size:12px;color:var(--gray-400);text-align:center;padding:8px 0 0;"></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost" id="btn-stop-scan">ປິດ / ຍົກເລີກ</button>
-    </div>
-  </div>
-</div>
-
 <style>
 @media print {
   header, .tabs-bar, .form-actions, .btn-export, .section-header button { display:none !important; }
@@ -387,6 +364,10 @@ tbody tr:hover{background:rgba(200,164,21,.04);}
 
 <script>
 // ==================== CONFIG ====================
+// ===== ປ່ຽນ URL ໃຫ້ຕົງກັບ GitHub Pages ຂອງທ່ານ =====
+const SITE_URL = 'https://othaix3.github.io/CARS/';
+// ========================================================
+
 const PLATES = ['ກກ 1518','ລຣ 9997','ກກ 2493','ລຮ 6668','ມຂ 6888'];
 const SK = 'ldb_mil_v2', DK = 'ldb_drv_v2';
 let _delId = null;
@@ -436,6 +417,12 @@ document.addEventListener('DOMContentLoaded', () => {
   populatePlates();
   populateFilters();
   renderAll();
+
+  // Auto-select vehicle from QR scan URL param (?p=KK1518)
+  const urlParam = new URLSearchParams(window.location.search).get('p');
+  if (urlParam && QR_REVERSE[urlParam]) {
+    setTimeout(() => onQRScanned('LDB:' + urlParam), 400);
+  }
 });
 
 // ==================== EVENTS ====================
@@ -449,9 +436,6 @@ function initEvents() {
   document.querySelectorAll('.form-tab').forEach(t => t.addEventListener('click', () => switchForm(t.dataset.form)));
 
   // Scan QR button
-  document.getElementById('btn-scan-qr').addEventListener('click', startScanner);
-  document.getElementById('btn-stop-scan').addEventListener('click', stopScanner);
-  document.getElementById('btn-close-scanner').addEventListener('click', stopScanner);
   document.getElementById('btn-clear-out').addEventListener('click', clearOut);
   document.getElementById('btn-save-in').addEventListener('click', saveIn);
   document.getElementById('btn-clear-in').addEventListener('click', clearIn);
@@ -500,10 +484,7 @@ function initEvents() {
   );
   document.querySelectorAll('.overlay').forEach(ov =>
     ov.addEventListener('click', e => {
-      if (e.target === ov) {
-        if (ov.id === 'ov-scanner') stopScanner();
-        else closeOv(ov.id);
-      }
+      if (e.target === ov) closeOv(ov.id);
     })
   );
 
@@ -568,8 +549,9 @@ function renderQR() {
     `;
     grid.appendChild(card);
     setTimeout(() => {
+      const qrUrl = SITE_URL + '?p=' + code;
       new QRCode(document.getElementById(safeId), {
-        text: 'LDB:' + code,
+        text: qrUrl,
         width: 140, height: 140,
         colorDark: '#0B2B5C', colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.L
@@ -939,69 +921,6 @@ function openVDetail(plate) {
     </table></div>
   `;
   openOv('ov-vdetail');
-}
-
-// ==================== SCANNER FUNCTIONS ====================
-let _scanner = null;
-
-function startScanner() {
-  openOv('ov-scanner');
-  // Clear any previous instance
-  document.getElementById('qr-reader').innerHTML = '';
-  document.getElementById('scan-status').textContent = '';
-  setTimeout(() => {
-    try {
-      _scanner = new Html5QrcodeScanner('qr-reader', {
-        fps: 10,
-        qrbox: { width: 230, height: 230 },
-        rememberLastUsedCamera: true,
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
-      }, false);
-      _scanner.render(
-        (decodedText) => {
-          if (decodedText.startsWith('LDB:')) {
-            stopScanner();
-            onQRScanned(decodedText);
-          } else {
-            document.getElementById('scan-status').textContent = '⚠️ QR code ນີ້ບໍ່ແມ່ນລົດ LDB';
-          }
-        },
-        () => {} // ignore per-frame errors
-      );
-    } catch(e) {
-      document.getElementById('scan-status').textContent = '❌ ເປີດ scanner ບໍ່ສຳເລັດ';
-    }
-  }, 150);
-}
-function stopScanner() {
-  if (_scanner) {
-    try { _scanner.clear(); } catch(e) {}
-    _scanner = null;
-  }
-  document.getElementById('qr-reader').innerHTML = '';
-  closeOv('ov-scanner');
-}
-function onQRScanned(rawCode) {
-  const code = rawCode.replace('LDB:', '');
-  const plate = QR_REVERSE[code];
-  if (!plate) { toast('QR code ບໍ່ຖືກຕ້ອງ','err'); return; }
-  // Switch to record tab
-  switchTab('record');
-  const recs = dbLoad();
-  const isOut = !!recs.find(r => r.plate===plate && r.status==='out');
-  if (isOut) {
-    // Vehicle is out → show return form
-    switchForm('in');
-    document.getElementById('i-plate').value = plate;
-    onInPlate();
-    toast(`🏠 ລົດ ${plate} — ເລືອກ "ກັບຄືນ" ແລ້ວ`);
-  } else {
-    // Vehicle is in → show departure form
-    switchForm('out');
-    document.getElementById('o-plate').value = plate;
-    onOutPlate();
-    toast(`🚗 ລົດ ${plate} — ເລືອກ "ອອກເດີນທາງ" ແລ້ວ`);
-  }
 }
 
 // ==================== EXPORT ====================
