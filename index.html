@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --navy:#0B2B5C;--navy-light:#1e4a8a;
@@ -441,42 +442,33 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
 
 <script>
 const SITE_URL='https://othaix3.github.io/CARS/';
-const SB_URL='https://pgfmiktykivsnnmhccwc.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnZm1pa3R5a2l2c25ubWhjY3djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NDIwOTAsImV4cCI6MjA5MjUxODA5MH0.TRAVp7O9GRMHaKGNHUcwN5HwjTNJ9hRKPdzwHZ7ALnk';
+const SB_URL='https://ffwlrqakhkwvrcqymmnk.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmd2xycWFraGt3dnJjcXltbW5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTIwMDQsImV4cCI6MjA5MzU2ODAwNH0.jHBGwov2Nn19z6ZHIkLWqJdqWuBmorEjiN_klMpy-YM';
 const PLATES=['ກກ 1518','ລຣ 9997','ກກ 2493','ລຮ 6668','ມຂ 6888'];
 const QR_MAP={'ກກ 1518':'KK1518','ລຣ 9997':'LR9997','ກກ 2493':'KK2493','ລຮ 6668':'LH6668','ມຂ 6888':'MK6888'};
 const QR_REVERSE=Object.fromEntries(Object.entries(QR_MAP).map(([k,v])=>[v,k]));
 const DK='ldb_drv_v2';
 let _delId=null;
 
-// ===== SUPABASE HELPERS =====
-const sbHeaders={
-  'Content-Type':'application/json',
-  'apikey':SB_KEY,
-  'Authorization':'Bearer '+SB_KEY,
-  'Prefer':'return=representation'
-};
-async function sbGet(filter=''){
-  const res=await fetch(`${SB_URL}/rest/v1/vehicle_mileage?order=created_at.asc${filter}`,{headers:sbHeaders});
-  if(!res.ok)throw new Error(await res.text());
-  return res.json();
+// ===== SUPABASE JS CLIENT =====
+const _sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+async function sbGet(){
+  const {data,error}=await _sb.from('vehicle_mileage').select('*').order('created_at');
+  if(error)throw error;
+  return data;
 }
 async function sbInsert(data){
-  const res=await fetch(`${SB_URL}/rest/v1/vehicle_mileage`,{method:'POST',headers:{...sbHeaders,'Prefer':'return=minimal'},body:JSON.stringify(data)});
-  if(!res.ok){
-    const err=await res.text();
-    throw new Error(`${res.status}: ${err}`);
-  }
-  return res.status;
+  const {error}=await _sb.from('vehicle_mileage').insert(data);
+  if(error)throw error;
 }
 async function sbUpdate(id,data){
-  const res=await fetch(`${SB_URL}/rest/v1/vehicle_mileage?id=eq.${id}`,{method:'PATCH',headers:sbHeaders,body:JSON.stringify(data)});
-  if(!res.ok)throw new Error(await res.text());
-  return res.json();
+  const {error}=await _sb.from('vehicle_mileage').update(data).eq('id',id);
+  if(error)throw error;
 }
 async function sbDelete(id){
-  const res=await fetch(`${SB_URL}/rest/v1/vehicle_mileage?id=eq.${id}`,{method:'DELETE',headers:sbHeaders});
-  if(!res.ok)throw new Error(await res.text());
+  const {error}=await _sb.from('vehicle_mileage').delete().eq('id',id);
+  if(error)throw error;
 }
 
 // Cache for offline/fast render
