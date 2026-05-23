@@ -441,8 +441,8 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
 
 <script>
 const SITE_URL='https://othaix3.github.io/CARS/';
-const SB_URL='https://pgfmiktykivsnnmhccwc.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnZm1pa3R5a2l2c25ubWhjY3djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NDIwOTAsImV4cCI6MjA5MjUxODA5MH0.TRAVp7O9GRMHaKGNHUcwN5HwjTNJ9hRKPdzwHZ7ALnk';
+const SB_URL='https://bmequqknitkatpigkqyy.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtZXF1cWtuaXRrYXRwaWdrcXl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MTk4OTgsImV4cCI6MjA5MjQ5NTg5OH0.gXKvY2ZRQxI4NdWZJzrTGVdEzB_hDX8WMDBNldkDouk';
 const PLATES=['ກກ 1518','ລຣ 9997','ກກ 2493','ລຮ 6668','ມຂ 6888'];
 const QR_MAP={'ກກ 1518':'KK1518','ລຣ 9997':'LR9997','ກກ 2493':'KK2493','ລຮ 6668':'LH6668','ມຂ 6888':'MK6888'};
 const QR_REVERSE=Object.fromEntries(Object.entries(QR_MAP).map(([k,v])=>[v,k]));
@@ -553,11 +553,11 @@ function populatePlates(){
   refreshInPlates();
 }
 function refreshInPlates(){
-  const out=_cache.filter(r=>r.status==='out');
+  const out=(Array.isArray(_cache)?_cache:[]).filter(r=>r.status==='out');
   document.getElementById('i-plate').innerHTML='<option value="">— ເລືອກລົດ —</option>'+out.map(r=>`<option value="${r.plate}">${r.plate} — ${r.driver}</option>`).join('');
 }
 function populateFilters(){
-  const months=[...new Set(_cache.map(r=>r.out_dt?r.out_dt.slice(0,7):'').filter(Boolean))].sort().reverse();
+  const months=[...new Set((Array.isArray(_cache)?_cache:[]).map(r=>r.out_dt?r.out_dt.slice(0,7):'').filter(Boolean))].sort().reverse();
   document.getElementById('f-month').innerHTML='<option value="">ທຸກເດືອນ</option>'+months.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${mo}/${y}</option>`;}).join('');
 }
 function renderAll(){renderDashboard();renderHistory();renderSummary();}
@@ -575,7 +575,7 @@ function renderDashboard(){
   document.getElementById('s-trips').textContent=done.length;
   // Vehicle cards
   document.getElementById('vCards').innerHTML=PLATES.map(p=>{
-    const outR=recs.filter(r=>r.plate===p&&r.status==='out').pop();
+    const outR=(Array.isArray(recs)?recs:[]).filter(r=>r.plate===p&&r.status==='out').pop();
     const lastR=recs.filter(r=>r.plate===p&&r.status==='complete').pop();
     const isOut=!!outR,km=isOut?outR.out_km:(lastR?lastR.in_km:null);
     return`<div class="vc ${isOut?'out':''}" data-plate="${p}">
@@ -597,7 +597,7 @@ function renderDashboard(){
 
 function renderHistory(){
   const pf=document.getElementById('f-plate').value,mf=document.getElementById('f-month').value;
-  let recs=[..._cache].reverse();
+  let recs=Array.isArray(_cache)?[..._cache].reverse():[];
   if(pf)recs=recs.filter(r=>r.plate===pf);
   if(mf)recs=recs.filter(r=>r.out_dt&&r.out_dt.startsWith(mf));
   document.getElementById('f-plate').className='filter-sel'+(pf?' active-filter':'');
@@ -626,7 +626,7 @@ function renderHistory(){
 }
 
 function renderSummary(){
-  const recs=dbLoad(),month=thisMonth();
+  const recs=Array.isArray(_cache)?_cache:[],month=thisMonth();
   const done=recs.filter(r=>r.status==='complete'&&r.out_dt&&r.out_dt.startsWith(month));
   const totalKm=done.reduce((s,r)=>s+(r.dist||0),0),avg=done.length?Math.round(totalKm/done.length):0;
   document.getElementById('sum-km').textContent=fmtN(totalKm);
