@@ -482,7 +482,14 @@ const drvSave=l=>localStorage.setItem(DK,JSON.stringify(l));
 function drvAdd(n){if(!n||!n.trim())return;drvSave([n.trim(),...drvLoad().filter(x=>x!==n.trim())].slice(0,60));}
 
 function toISO(d){return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
-function fmtDT(iso){if(!iso)return'—';const d=new Date(iso);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+function fmtDT(iso){
+  if(!iso)return'—';
+  // Parse directly to avoid timezone shift
+  const s=iso.slice(0,16); // "2026-05-23T08:56"
+  const [date,time]=s.split('T');
+  const [y,m,d]=date.split('-');
+  return `${d}/${m}/${y} ${time||''}`;
+}
 function fmtN(n){return(n==null||n==='')?'—':Number(n).toLocaleString();}
 function thisMonth(){const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;}
 function toast(msg,type='ok'){const el=document.getElementById('toast');el.textContent=msg;el.className=`toast ${type} show`;setTimeout(()=>el.classList.remove('show'),2600);}
@@ -687,7 +694,15 @@ async function saveOut(){
   if(!km||km<=0){toast('ກະລຸນາໃສ່ເລກໄມ','err');return;}
   const recs=await dbLoad();
   if(recs.find(r=>r.plate===plate&&r.status==='out')){toast('ລົດຄັນນີ້ຍັງຢູ່ນອກ!','err');return;}
-  const outDtISO = dt.length===16 ? dt+':00' : dt;
+  // Append local timezone offset to preserve local time in Supabase
+  function addTZ(dt){
+    const off=-new Date().getTimezoneOffset();
+    const sign=off>=0?'+':'-';
+    const h=String(Math.floor(Math.abs(off)/60)).padStart(2,'0');
+    const mn=String(Math.abs(off)%60).padStart(2,'0');
+    return (dt.length===16?dt+':00':dt)+sign+h+':'+mn;
+  }
+  const outDtISO = addTZ(dt);
   try{
     await sbInsert({id:Date.now().toString(),plate,out_dt:outDtISO,driver,dest,out_km:km,note:note||null,status:'out'});
     drvAdd(driver);toast('✅ ບັນທຶກການອອກສຳເລັດ');
@@ -706,8 +721,9 @@ async function saveIn(){
   const rec=recs.find(r=>r.plate===plate&&r.status==='out');
   if(!rec){toast('ບໍ່ພົບຂໍ້ມູນ','err');return;}
   if(km<rec.out_km){toast('ເລກໄມກັບຕ້ອງຫຼາຍກວ່າຕອນອອກ','err');return;}
+  function addTZ2(dt){const off=-new Date().getTimezoneOffset();const sign=off>=0?'+':'-';const h=String(Math.floor(Math.abs(off)/60)).padStart(2,'0');const mn=String(Math.abs(off)%60).padStart(2,'0');return(dt.length===16?dt+':00':dt)+sign+h+':'+mn;}
   try{
-    await sbUpdate(rec.id,{in_dt:dt,in_km:km,dist:km-rec.out_km,in_note:note,status:'complete'});
+    await sbUpdate(rec.id,{in_dt:addTZ2(dt),in_km:km,dist:km-rec.out_km,in_note:note,status:'complete'});
     toast('🏠 ບັນທຶກການກັບສຳເລັດ');
     clearIn();await refreshAll();
   }catch(e){toast('❌ '+e.message,'err');console.error('saveOut error:',e);}
@@ -841,7 +857,7 @@ function onQRScanned(rawCode){
 
 function exportExcel(){
   const pf=document.getElementById('f-plate').value,mf=document.getElementById('f-month').value;
-  let recs=dbLoad();
+  let recs=Array.isArray(_cache)?[..._cache]:[];
   if(pf)recs=recs.filter(r=>r.plate===pf);
   if(mf)recs=recs.filter(r=>r.out_dt&&r.out_dt.startsWith(mf));
   if(!recs.length){toast('ບໍ່ມີຂໍ້ມູນ','err');return;}
