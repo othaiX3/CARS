@@ -462,9 +462,12 @@ async function sbGet(filter=''){
   return res.json();
 }
 async function sbInsert(data){
-  const res=await fetch(`${SB_URL}/rest/v1/vehicle_mileage`,{method:'POST',headers:sbHeaders,body:JSON.stringify(data)});
-  if(!res.ok)throw new Error(await res.text());
-  return res.json();
+  const res=await fetch(`${SB_URL}/rest/v1/vehicle_mileage`,{method:'POST',headers:{...sbHeaders,'Prefer':'return=minimal'},body:JSON.stringify(data)});
+  if(!res.ok){
+    const err=await res.text();
+    throw new Error(`${res.status}: ${err}`);
+  }
+  return res.status;
 }
 async function sbUpdate(id,data){
   const res=await fetch(`${SB_URL}/rest/v1/vehicle_mileage?id=eq.${id}`,{method:'PATCH',headers:sbHeaders,body:JSON.stringify(data)});
@@ -692,11 +695,12 @@ async function saveOut(){
   if(!km||km<=0){toast('ກະລຸນາໃສ່ເລກໄມ','err');return;}
   const recs=await dbLoad();
   if(recs.find(r=>r.plate===plate&&r.status==='out')){toast('ລົດຄັນນີ້ຍັງຢູ່ນອກ!','err');return;}
+  const outDtISO = dt.length===16 ? dt+':00' : dt;
   try{
-    await sbInsert({id:Date.now().toString(),plate,out_dt:dt,driver,dest,out_km:km,note,status:'out'});
+    await sbInsert({id:Date.now().toString(),plate,out_dt:outDtISO,driver,dest,out_km:km,note:note||null,status:'out'});
     drvAdd(driver);toast('✅ ບັນທຶກການອອກສຳເລັດ');
     clearOut();await refreshAll();
-  }catch(e){toast('ບໍ່ສາມາດບັນທຶກໄດ້','err');}
+  }catch(e){toast('❌ '+e.message,'err');console.error('saveOut error:',e);}
 }
 async function saveIn(){
   const plate=document.getElementById('i-plate').value;
@@ -714,7 +718,7 @@ async function saveIn(){
     await sbUpdate(rec.id,{in_dt:dt,in_km:km,dist:km-rec.out_km,in_note:note,status:'complete'});
     toast('🏠 ບັນທຶກການກັບສຳເລັດ');
     clearIn();await refreshAll();
-  }catch(e){toast('ບໍ່ສາມາດບັນທຶກໄດ້','err');}
+  }catch(e){toast('❌ '+e.message,'err');console.error('saveOut error:',e);}
 }
 function clearOut(){['o-plate','o-driver','o-dest','o-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('o-km').value='';document.getElementById('o-dt').value=toISO(new Date());document.getElementById('o-hint').innerHTML='';}
 function clearIn(){['i-plate','i-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('i-km').value='';document.getElementById('i-dt').value=toISO(new Date());document.getElementById('i-hint').innerHTML='';}
