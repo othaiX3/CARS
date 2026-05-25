@@ -344,6 +344,8 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
   <div class="filter-bar">
     <select class="filter-sel" id="f-plate"><option value="">ລົດທັງໝົດ</option></select>
     <select class="filter-sel" id="f-month"><option value="">ທຸກເດືອນ</option></select>
+    <input type="date" class="filter-sel" id="f-date" title="ເລືອກວັນທີ" style="min-width:130px;">
+    <button class="btn-export-sm" id="btn-clear-date" style="background:var(--gray-200);color:var(--gray-600);display:none;">✕ ວັນທີ</button>
     <button class="btn-export-sm" id="btn-export">⬇️ Excel</button>
   </div>
   <div class="hist-list" id="histList"></div>
@@ -527,6 +529,18 @@ function initEvents(){
   document.getElementById('btn-export').addEventListener('click',exportExcel);
   document.getElementById('f-plate').addEventListener('change',renderHistory);
   document.getElementById('f-month').addEventListener('change',renderHistory);
+  document.getElementById('f-date').addEventListener('change',()=>{
+    const val=document.getElementById('f-date').value;
+    document.getElementById('btn-clear-date').style.display=val?'':'none';
+    // When date selected, clear month filter
+    if(val) document.getElementById('f-month').value='';
+    renderHistory();
+  });
+  document.getElementById('btn-clear-date').addEventListener('click',()=>{
+    document.getElementById('f-date').value='';
+    document.getElementById('btn-clear-date').style.display='none';
+    renderHistory();
+  });
   // History list delegation
   document.getElementById('histList').addEventListener('click',e=>{
     const btn=e.target.closest('[data-action]');if(!btn)return;
@@ -595,12 +609,23 @@ function renderDashboard(){
 }
 
 function renderHistory(){
-  const pf=document.getElementById('f-plate').value,mf=document.getElementById('f-month').value;
+  const pf=document.getElementById('f-plate').value;
+  const mf=document.getElementById('f-month').value;
+  const df=document.getElementById('f-date').value; // YYYY-MM-DD
   let recs=Array.isArray(_cache)?[..._cache].reverse():[];
   if(pf)recs=recs.filter(r=>r.plate===pf);
-  if(mf)recs=recs.filter(r=>r.out_dt&&r.out_dt.startsWith(mf));
+  if(df){
+    // Filter by exact date - compare date part of out_dt
+    recs=recs.filter(r=>{
+      if(!r.out_dt)return false;
+      return r.out_dt.slice(0,10)===df;
+    });
+  } else if(mf){
+    recs=recs.filter(r=>r.out_dt&&r.out_dt.startsWith(mf));
+  }
   document.getElementById('f-plate').className='filter-sel'+(pf?' active-filter':'');
   document.getElementById('f-month').className='filter-sel'+(mf?' active-filter':'');
+  document.getElementById('f-date').className='filter-sel'+(df?' active-filter':'');
   const list=document.getElementById('histList');
   if(!recs.length){list.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--gray-400);font-size:14px;">ບໍ່ມີຂໍ້ມູນ</div>';document.getElementById('histCount').textContent='';return;}
   list.innerHTML=recs.map(r=>`
@@ -856,10 +881,13 @@ function onQRScanned(rawCode){
 }
 
 function exportExcel(){
-  const pf=document.getElementById('f-plate').value,mf=document.getElementById('f-month').value;
+  const pf=document.getElementById('f-plate').value;
+  const mf=document.getElementById('f-month').value;
+  const df=document.getElementById('f-date').value;
   let recs=Array.isArray(_cache)?[..._cache]:[];
   if(pf)recs=recs.filter(r=>r.plate===pf);
-  if(mf)recs=recs.filter(r=>r.out_dt&&r.out_dt.startsWith(mf));
+  if(df)recs=recs.filter(r=>r.out_dt&&r.out_dt.slice(0,10)===df);
+  else if(mf)recs=recs.filter(r=>r.out_dt&&r.out_dt.startsWith(mf));
   if(!recs.length){toast('ບໍ່ມີຂໍ້ມູນ','err');return;}
   const rows=[['#','ທະບຽນ','ຄົນຂັບ','ຈຸດໝາຍ','ວັນ-ເວລາອອກ','ໄມອອກ','ວັນ-ເວລາກັບ','ໄມກັບ','ໄລຍະ(km)','ສະຖານະ','ໝາຍເຫດ']];
   recs.forEach((r,i)=>rows.push([i+1,r.plate,r.driver,r.dest,fmtDT(r.out_dt),r.out_km,r.in_dt?fmtDT(r.in_dt):'',r.in_km||'',r.dist||'',r.status==='complete'?'ກັບແລ້ວ':'ຢູ່ນອກ',r.note||'']));
