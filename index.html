@@ -150,8 +150,8 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
 .hi-btn.del{background:var(--red-bg);color:var(--red);}
 
 /* ===== FILTER BAR ===== */
-.filter-bar{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;}
-.filter-bar::-webkit-scrollbar{display:none;}
+.filter-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+
 .filter-sel{padding:9px 14px;border:1.5px solid var(--gray-200);border-radius:20px;font-size:13px;font-family:'IBM Plex Sans Thai',sans-serif;outline:none;background:var(--white);-webkit-appearance:none;appearance:none;flex-shrink:0;color:var(--text);}
 .filter-sel.active-filter{border-color:var(--navy);background:rgba(11,43,92,.06);color:var(--navy);font-weight:600;}
 .btn-export-sm{padding:9px 16px;background:var(--gold);color:var(--navy);border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:'IBM Plex Sans Thai',sans-serif;}
@@ -344,7 +344,7 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
   <div class="filter-bar">
     <select class="filter-sel" id="f-plate"><option value="">ລົດທັງໝົດ</option></select>
     <select class="filter-sel" id="f-month"><option value="">ທຸກເດືອນ</option></select>
-    <input type="date" class="filter-sel" id="f-date" title="ເລືອກວັນທີ" style="min-width:130px;">
+    <input type="date" class="filter-sel" id="f-date" placeholder="ເລືອກວັນທີ" style="min-width:140px;flex:1;">
     <button class="btn-export-sm" id="btn-clear-date" style="background:var(--gray-200);color:var(--gray-600);display:none;">✕ ວັນທີ</button>
     <button class="btn-export-sm" id="btn-export">⬇️ Excel</button>
   </div>
