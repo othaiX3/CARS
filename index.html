@@ -278,6 +278,10 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
 .photo-uploading{font-size:11px;color:var(--gray-400);margin-top:4px;display:flex;align-items:center;gap:6px;}
 .spin{animation:spin .8s linear infinite;display:inline-block;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+.dt-split{display:flex;gap:8px;}
+.dt-split input[type=date]{flex:1.5;}
+.dt-split input[type=time]{flex:1;}
 </style>
 </head>
 <body>
@@ -306,6 +310,12 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
 
 <!-- DASHBOARD -->
 <div class="tab-content active" id="tab-dashboard">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div style="font-size:14px;font-weight:600;color:var(--navy);">📊 ພາບລວມ</div>
+    <select id="dash-month" style="padding:9px 14px;border:1.5px solid var(--gray-200);border-radius:20px;font-size:13px;font-family:'IBM Plex Sans Thai',sans-serif;outline:none;color:var(--navy);background:var(--white);cursor:pointer;font-weight:600;">
+      <option value="">ທຸກເດືອນ</option>
+    </select>
+  </div>
   <div class="stats-grid">
     <div class="stat-card gold"><div class="stat-label">ລົດທັງໝົດ</div><div class="stat-value">5</div><div class="stat-unit">ຄັນ</div></div>
     <div class="stat-card red"><div class="stat-label">ຢູ່ນອກ</div><div class="stat-value" id="s-out">0</div><div class="stat-unit">ຄັນ</div></div>
@@ -328,7 +338,7 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
     <!-- OUT -->
     <div class="form-body" id="fb-out">
       <div class="fg"><label class="req">ທະບຽນລົດ</label><select id="o-plate"><option value="">— ເລືອກລົດ —</option></select></div>
-      <div class="fg"><label class="req">ວັນທີ / ເວລາອອກ</label><input type="datetime-local" id="o-dt"></div>
+      <div class="fg"><label class="req">ວັນທີ / ເວລາອອກ</label><div class="dt-split"><input type="date" id="o-date"><input type="time" id="o-time"></div></div>
       <div class="fg" style="position:relative"><label class="req">ຊື່ຄົນຂັບ</label><input type="text" id="o-driver" placeholder="ພິມຊື່..." autocomplete="off"><div class="ac-list" id="ac-out"></div></div>
       <div class="fg"><label class="req">ຈຸດໝາຍ</label><input type="text" id="o-dest" placeholder="ສະຖານທີ່..."></div>
       <div class="fg"><label class="req">ເລກໄມຕອນອອກ</label>
@@ -349,7 +359,7 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
     <!-- IN -->
     <div class="form-body" id="fb-in" style="display:none">
       <div class="fg"><label class="req">ທະບຽນລົດ (ທີ່ອອກຢູ່)</label><select id="i-plate"><option value="">— ເລືອກລົດ —</option></select></div>
-      <div class="fg"><label class="req">ວັນທີ / ເວລາກັບ</label><input type="datetime-local" id="i-dt"></div>
+      <div class="fg"><label class="req">ວັນທີ / ເວລາກັບ</label><div class="dt-split"><input type="date" id="i-date"><input type="time" id="i-time"></div></div>
       <div class="fg"><label class="req">ເລກໄມຕອນກັບ</label>
           <div class="km-photo-wrap">
             <div class="km-wrap"><input type="number" id="i-km" placeholder="0" min="0" inputmode="numeric"><span class="km-unit">km</span></div>
@@ -435,7 +445,7 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
     <div class="modal-body">
       <input type="hidden" id="edit-id">
       <div class="edit-group"><label>ທະບຽນລົດ</label><select id="e-plate"></select></div>
-      <div class="edit-group"><label>ວັນທີ/ເວລາອອກ</label><input type="datetime-local" id="e-out-dt"></div>
+      <div class="edit-group"><label>ວັນທີ/ເວລາອອກ</label><div class="dt-split"><input type="date" id="e-out-date"><input type="time" id="e-out-time"></div></div>
       <div class="edit-group"><label>ຊື່ຄົນຂັບ</label><input type="text" id="e-driver"></div>
       <div class="edit-group"><label>ຈຸດໝາຍ</label><input type="text" id="e-dest"></div>
       <div class="edit-group"><label>ເລກໄມຕອນອອກ (km)</label><input type="number" id="e-out-km" min="0" inputmode="numeric"></div>
@@ -614,18 +624,27 @@ function initPhotoHandlers() {
 document.addEventListener('DOMContentLoaded',async()=>{
   const now=new Date();
   document.getElementById('hdrDate').textContent=now.toLocaleDateString('lo-LA',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
-  document.getElementById('o-dt').value=toISO(now);
-  document.getElementById('i-dt').value=toISO(now);
+  const todayStr = now.toISOString().split('T')[0];
+  const timeStr = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  document.getElementById('o-date').value=todayStr;
+  document.getElementById('o-time').value=timeStr;
+  document.getElementById('i-date').value=todayStr;
+  document.getElementById('i-time').value=timeStr;
   document.getElementById('e-plate').innerHTML=PLATES.map(p=>`<option value="${p}">${p}</option>`).join('');
   initEvents();
   try{initPhotoHandlers();}catch(e){console.error('Photo handler error:',e);}
   await dbLoad();
-  populatePlates();populateFilters();renderAll();
+  populatePlates();populateFilters();populateDashMonths();renderAll();
   const urlParam=new URLSearchParams(window.location.search).get('p');
   if(urlParam&&QR_REVERSE[urlParam])setTimeout(()=>onQRScanned('LDB:'+urlParam),400);
 });
 
 function initEvents(){
+  // Dashboard month selector
+  document.getElementById('dash-month').addEventListener('change',()=>{
+    renderDashboard();
+  });
+
   // Nav items (bottom + top tabs)
   document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>switchTab(el.dataset.tab)));
   // Form switcher
@@ -683,6 +702,20 @@ function refreshInPlates(){
   const out=(Array.isArray(_cache)?_cache:[]).filter(r=>r.status==='out');
   document.getElementById('i-plate').innerHTML='<option value="">— ເລືອກລົດ —</option>'+out.map(r=>`<option value="${r.plate}">${r.plate} — ${r.driver}</option>`).join('');
 }
+function populateDashMonths(){
+  const months=[...new Set((Array.isArray(_cache)?_cache:[]).map(r=>r.out_dt?r.out_dt.slice(0,7):'').filter(Boolean))].sort().reverse();
+  const sel=document.getElementById('dash-month');
+  const current=sel.value;
+  sel.innerHTML='<option value="">ທຸກເດືອນ</option>'+
+    months.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${mo}/${y}</option>`;}).join('');
+  // default to this month if available
+  if(!current){
+    const tm=thisMonth();
+    if(months.includes(tm)) sel.value=tm;
+  } else {
+    sel.value=current;
+  }
+}
 function populateFilters(){
   const months=[...new Set((Array.isArray(_cache)?_cache:[]).map(r=>r.out_dt?r.out_dt.slice(0,7):'').filter(Boolean))].sort().reverse();
   document.getElementById('f-month').innerHTML='<option value="">ທຸກເດືອນ</option>'+months.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${mo}/${y}</option>`;}).join('');
@@ -690,7 +723,7 @@ function populateFilters(){
 function renderAll(){renderDashboard();renderHistory();renderSummary();}
 async function refreshAll(){
   await dbLoad();
-  refreshInPlates();populateFilters();renderAll();
+  refreshInPlates();populateFilters();populateDashMonths();renderAll();
 }
 
 function renderDashboard(){
@@ -698,6 +731,17 @@ function renderDashboard(){
   const done=recs.filter(r=>r.status==='complete'&&r.out_dt&&r.out_dt.startsWith(month));
   const outNow=recs.filter(r=>r.status==='out');
   document.getElementById('s-out').textContent=outNow.length;
+  // Update labels
+  const kmLbl = document.getElementById('s-km-label');
+  const tripsLbl = document.getElementById('s-trips-label');
+  if(month){
+    const [my2, mm2] = month.split('-');
+    if(kmLbl) kmLbl.textContent = 'ໄລຍະ '+mm2+'/'+my2;
+    if(tripsLbl) tripsLbl.textContent = 'ເທື່ອ '+mm2+'/'+my2;
+  } else {
+    if(kmLbl) kmLbl.textContent = 'ໄລຍະທາງລວມ';
+    if(tripsLbl) tripsLbl.textContent = 'ຈຳນວນເທື່ອລວມ';
+  }
   document.getElementById('s-km').textContent=fmtN(done.reduce((s,r)=>s+(r.dist||0),0));
   document.getElementById('s-trips').textContent=done.length;
   // Vehicle cards
@@ -821,7 +865,7 @@ function calcDist(){
 
 async function saveOut(){
   const plate=document.getElementById('o-plate').value;
-  const dt=document.getElementById('o-dt').value;
+  const dt=document.getElementById('o-date').value+'T'+document.getElementById('o-time').value;
   const driver=document.getElementById('o-driver').value.trim();
   const dest=document.getElementById('o-dest').value.trim();
   const km=parseInt(document.getElementById('o-km').value);
@@ -856,7 +900,7 @@ async function saveOut(){
 }
 async function saveIn(){
   const plate=document.getElementById('i-plate').value;
-  const dt=document.getElementById('i-dt').value;
+  const dt=document.getElementById('i-date').value+'T'+document.getElementById('i-time').value;
   const km=parseInt(document.getElementById('i-km').value);
   const note=document.getElementById('i-note').value.trim();
   if(!plate){toast('ກະລຸນາເລືອກລົດ','err');return;}
@@ -882,7 +926,7 @@ async function saveIn(){
 function clearOut(){
   ['o-plate','o-driver','o-dest','o-note'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('o-km').value='';
-  document.getElementById('o-dt').value=toISO(new Date());
+  const _n=new Date();document.getElementById('o-date').value=_n.toISOString().split('T')[0];document.getElementById('o-time').value=_n.getHours().toString().padStart(2,'0')+':'+_n.getMinutes().toString().padStart(2,'0');
   document.getElementById('o-hint').innerHTML='';
   _outPhotoFile=null;_outPhotoUrl=null;
   document.getElementById('out-photo-input').value='';
@@ -891,7 +935,7 @@ function clearOut(){
 function clearIn(){
   ['i-plate','i-note'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('i-km').value='';
-  document.getElementById('i-dt').value=toISO(new Date());
+  const _n2=new Date();document.getElementById('i-date').value=_n2.toISOString().split('T')[0];document.getElementById('i-time').value=_n2.getHours().toString().padStart(2,'0')+':'+_n2.getMinutes().toString().padStart(2,'0');
   document.getElementById('i-hint').innerHTML='';
   _inPhotoFile=null;_inPhotoUrl=null;
   document.getElementById('in-photo-input').value='';
@@ -957,7 +1001,7 @@ function openEdit(id){
   const rec=_cache.find(r=>r.id===id);if(!rec){toast('ບໍ່ພົບຂໍ້ມູນ','err');return;}
   document.getElementById('edit-id').value=rec.id;
   document.getElementById('e-plate').value=rec.plate;
-  document.getElementById('e-out-dt').value=rec.out_dt||'';
+  const _eout=rec.out_dt?rec.out_dt.slice(0,16).split('T'):['',''];document.getElementById('e-out-date').value=_eout[0];document.getElementById('e-out-time').value=_eout[1]||'';
   document.getElementById('e-driver').value=rec.driver;
   document.getElementById('e-dest').value=rec.dest;
   document.getElementById('e-out-km').value=rec.out_km;
@@ -965,7 +1009,7 @@ function openEdit(id){
   const done=rec.status==='complete';
   document.getElementById('e-in-dt-grp').style.display=done?'':'none';
   document.getElementById('e-in-km-grp').style.display=done?'':'none';
-  if(done){document.getElementById('e-in-dt').value=rec.in_dt||'';document.getElementById('e-in-km').value=rec.in_km||'';}
+  if(done){const _ein=rec.in_dt?rec.in_dt.slice(0,16).split('T'):['',''];document.getElementById('e-in-date').value=_ein[0];document.getElementById('e-in-time').value=_ein[1]||'';document.getElementById('e-in-km').value=rec.in_km||'';}
   openOv('ov-edit');
 }
 async function saveEdit(){
@@ -976,7 +1020,7 @@ async function saveEdit(){
   if(!driver){toast('ກະລຸນາໃສ່ຊື່ຄົນຂັບ','err');return;}
   const done=rec.status==='complete';
   const in_km=done?(parseInt(document.getElementById('e-in-km').value)||rec.in_km):null;
-  const update={plate:document.getElementById('e-plate').value,out_dt:document.getElementById('e-out-dt').value,driver,dest:document.getElementById('e-dest').value.trim(),out_km,note:document.getElementById('e-note').value.trim(),...(done?{in_dt:document.getElementById('e-in-dt').value,in_km,dist:in_km-out_km}:{})};
+  const update={plate:document.getElementById('e-plate').value,out_dt:document.getElementById('e-out-date').value+'T'+document.getElementById('e-out-time').value+':00',driver,dest:document.getElementById('e-dest').value.trim(),out_km,note:document.getElementById('e-note').value.trim(),...(done?{in_dt:document.getElementById('e-in-date').value+'T'+document.getElementById('e-in-time').value+':00',in_km,dist:in_km-out_km}:{})};
   try{
     await sbUpdate(id,update);drvAdd(driver);closeOv('ov-edit');
     toast('✏️ ແກ້ໄຂສຳເລັດ');await refreshAll();
@@ -1004,8 +1048,6 @@ function openVDetail(plate){
     <div class="detail-hero"><div><div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase">ທະບຽນ</div><div class="detail-plate">${plate}</div></div><span class="vstatus ${outR?'out':'in'}">${outR?'🔴 ອອກຢູ່':'✅ ຢູ່ທີ່'}</span></div>
     <div class="vd-stats">
       <div class="vd-stat"><div class="vd-stat-lbl">ໄລຍະລວມ</div><div class="vd-stat-val">${fmtN(totalKm)}</div><div class="vd-stat-unit">km</div></div>
-      <div class="vd-stat"><div class="vd-stat-lbl">ໃຊ້ທັງໝົດ</div><div class="vd-stat-val">${done.length}</div><div class="vd-stat-unit">ເທື່ອ</div></div>
-      <div class="vd-stat"><div class="vd-stat-lbl">ສະເລ່ຍ/ເທື່ອ</div><div class="vd-stat-val">${fmtN(avg)}</div><div class="vd-stat-unit">km</div></div>
       <div class="vd-stat"><div class="vd-stat-lbl">ເດືອນນີ້</div><div class="vd-stat-val">${fmtN(mKm)}</div><div class="vd-stat-unit">km · ${mDone.length}x</div></div>
       <div class="vd-stat"><div class="vd-stat-lbl">ເລກໄມລ່າສຸດ</div><div class="vd-stat-val">${last?fmtN(last.in_km):'—'}</div><div class="vd-stat-unit">km</div></div>
       <div class="vd-stat"><div class="vd-stat-lbl">ຄົນຂັບລ່າສຸດ</div><div class="vd-stat-val" style="font-size:14px;font-family:sans-serif">${last?last.driver:'—'}</div><div class="vd-stat-unit">${last?fmtDT(last.out_dt):''}</div></div>
