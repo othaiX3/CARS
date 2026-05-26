@@ -350,7 +350,15 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
     <div class="form-body" id="fb-in" style="display:none">
       <div class="fg"><label class="req">ທະບຽນລົດ (ທີ່ອອກຢູ່)</label><select id="i-plate"><option value="">— ເລືອກລົດ —</option></select></div>
       <div class="fg"><label class="req">ວັນທີ / ເວລາກັບ</label><input type="datetime-local" id="i-dt"></div>
-      <div class="fg"><label class="req">ເລກໄມຕອນກັບ</label><div class="km-wrap"><input type="number" id="i-km" placeholder="0" min="0" inputmode="numeric"><span class="km-unit">km</span></div><div class="hint" id="i-hint"></div></div>
+      <div class="fg"><label class="req">ເລກໄມຕອນກັບ</label>
+          <div class="km-photo-wrap">
+            <div class="km-wrap"><input type="number" id="i-km" placeholder="0" min="0" inputmode="numeric"><span class="km-unit">km</span></div>
+            <button type="button" class="btn-photo" id="btn-in-photo" title="ຖ່າຍຮູບໄມລ໌">📷</button>
+          </div>
+          <div id="in-photo-preview"></div>
+          <div class="hint" id="i-hint"></div>
+          <input type="file" id="in-photo-input" accept="image/*" capture="environment" style="display:none">
+        </div>
       <div class="fg"><label>ໝາຍເຫດ</label><input type="text" id="i-note" placeholder="(ຖ້າມີ)"></div>
     </div>
     <div class="form-actions" id="fa-in" style="display:none">
@@ -610,7 +618,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('i-dt').value=toISO(now);
   document.getElementById('e-plate').innerHTML=PLATES.map(p=>`<option value="${p}">${p}</option>`).join('');
   initEvents();
-  initPhotoHandlers();
+  try{initPhotoHandlers();}catch(e){console.error('Photo handler error:',e);}
   await dbLoad();
   populatePlates();populateFilters();renderAll();
   const urlParam=new URLSearchParams(window.location.search).get('p');
