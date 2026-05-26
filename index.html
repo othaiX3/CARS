@@ -265,6 +265,19 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
   .qr-grid{grid-template-columns:repeat(5,1fr)!important;}
   body{background:white!important;padding:0!important;}
 }
+
+/* ===== PHOTO UPLOAD ===== */
+.km-photo-wrap{display:flex;gap:8px;align-items:flex-start;}
+.km-photo-wrap .km-wrap{flex:1;}
+.btn-photo{width:48px;height:48px;border-radius:12px;border:1.5px solid var(--gray-200);background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;transition:all .2s;}
+.btn-photo:hover{border-color:var(--navy);background:var(--gold-dim);}
+.btn-photo.has-photo{border-color:var(--green);background:var(--green-bg);}
+.photo-preview{margin-top:8px;position:relative;display:inline-block;}
+.photo-preview img{width:100%;max-width:200px;height:120px;object-fit:cover;border-radius:10px;border:2px solid var(--gray-200);display:block;}
+.photo-preview .btn-remove-photo{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:var(--red);color:#fff;border:none;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;}
+.photo-uploading{font-size:11px;color:var(--gray-400);margin-top:4px;display:flex;align-items:center;gap:6px;}
+.spin{animation:spin .8s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -318,7 +331,15 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
       <div class="fg"><label class="req">ວັນທີ / ເວລາອອກ</label><input type="datetime-local" id="o-dt"></div>
       <div class="fg" style="position:relative"><label class="req">ຊື່ຄົນຂັບ</label><input type="text" id="o-driver" placeholder="ພິມຊື່..." autocomplete="off"><div class="ac-list" id="ac-out"></div></div>
       <div class="fg"><label class="req">ຈຸດໝາຍ</label><input type="text" id="o-dest" placeholder="ສະຖານທີ່..."></div>
-      <div class="fg"><label class="req">ເລກໄມຕອນອອກ</label><div class="km-wrap"><input type="number" id="o-km" placeholder="0" min="0" inputmode="numeric"><span class="km-unit">km</span></div><div class="hint" id="o-hint"></div></div>
+      <div class="fg"><label class="req">ເລກໄມຕອນອອກ</label>
+        <div class="km-photo-wrap">
+          <div class="km-wrap"><input type="number" id="o-km" placeholder="0" min="0" inputmode="numeric"><span class="km-unit">km</span></div>
+          <button type="button" class="btn-photo" id="btn-out-photo" title="ຖ່າຍຮູບໄມລ໌">📷</button>
+        </div>
+        <div id="out-photo-preview"></div>
+        <div class="hint" id="o-hint"></div>
+        <input type="file" id="out-photo-input" accept="image/*" capture="environment" style="display:none">
+      </div>
       <div class="fg"><label>ໝາຍເຫດ</label><input type="text" id="o-note" placeholder="(ຖ້າມີ)"></div>
     </div>
     <div class="form-actions">
@@ -498,6 +519,90 @@ function toast(msg,type='ok'){const el=document.getElementById('toast');el.textC
 function openOv(id){document.getElementById(id).classList.add('open');}
 function closeOv(id){document.getElementById(id).classList.remove('open');}
 
+// ===== PHOTO UPLOAD =====
+let _outPhotoFile = null, _inPhotoFile = null;
+let _outPhotoUrl = null, _inPhotoUrl = null;
+
+async function compressImage(file, maxW=1200) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ratio = Math.min(maxW/img.width, maxW/img.height, 1);
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.75);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadPhoto(file, type) {
+  const blob = await compressImage(file);
+  const ext = 'jpg';
+  const path = `${type}/${Date.now()}.${ext}`;
+  const { data, error } = await _sb.storage.from('vehicle-photos').upload(path, blob, {
+    contentType: 'image/jpeg', upsert: true
+  });
+  if (error) throw error;
+  const { data: urlData } = _sb.storage.from('vehicle-photos').getPublicUrl(path);
+  return urlData.publicUrl;
+}
+
+function showPhotoPreview(containerId, btnId, url, onRemove) {
+  const c = document.getElementById(containerId);
+  const btn = document.getElementById(btnId);
+  if (url) {
+    c.innerHTML = `<div class="photo-preview"><img src="${url}" onclick="window.open('${url}','_blank')"><button class="btn-remove-photo" id="rm-${containerId}">✕</button></div>`;
+    document.getElementById('rm-'+containerId).addEventListener('click', onRemove);
+    btn.classList.add('has-photo');
+    btn.textContent = '✅';
+  } else {
+    c.innerHTML = '';
+    btn.classList.remove('has-photo');
+    btn.textContent = '📷';
+  }
+}
+
+function initPhotoHandlers() {
+  // OUT photo
+  document.getElementById('btn-out-photo').addEventListener('click', () => {
+    document.getElementById('out-photo-input').click();
+  });
+  document.getElementById('out-photo-input').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    _outPhotoFile = file;
+    const url = URL.createObjectURL(file);
+    _outPhotoUrl = null; // will upload on save
+    showPhotoPreview('out-photo-preview','btn-out-photo', url, () => {
+      _outPhotoFile = null; _outPhotoUrl = null;
+      document.getElementById('out-photo-input').value = '';
+      showPhotoPreview('out-photo-preview','btn-out-photo', null, null);
+    });
+  });
+
+  // IN photo
+  document.getElementById('btn-in-photo').addEventListener('click', () => {
+    document.getElementById('in-photo-input').click();
+  });
+  document.getElementById('in-photo-input').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    _inPhotoFile = file;
+    const url = URL.createObjectURL(file);
+    _inPhotoUrl = null;
+    showPhotoPreview('in-photo-preview','btn-in-photo', url, () => {
+      _inPhotoFile = null; _inPhotoUrl = null;
+      document.getElementById('in-photo-input').value = '';
+      showPhotoPreview('in-photo-preview','btn-in-photo', null, null);
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded',async()=>{
   const now=new Date();
   document.getElementById('hdrDate').textContent=now.toLocaleDateString('lo-LA',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
@@ -505,6 +610,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('i-dt').value=toISO(now);
   document.getElementById('e-plate').innerHTML=PLATES.map(p=>`<option value="${p}">${p}</option>`).join('');
   initEvents();
+  initPhotoHandlers();
   await dbLoad();
   populatePlates();populateFilters();renderAll();
   const urlParam=new URLSearchParams(window.location.search).get('p');
@@ -729,7 +835,13 @@ async function saveOut(){
   }
   const outDtISO = addTZ(dt);
   try{
-    await sbInsert({id:Date.now().toString(),plate,out_dt:outDtISO,driver,dest,out_km:km,note:note||null,status:'out'});
+    let imgUrl = null;
+    if(_outPhotoFile){
+      document.getElementById('btn-out-photo').innerHTML='<span class="spin">⏳</span>';
+      try{ imgUrl = await uploadPhoto(_outPhotoFile,'out'); }
+      catch(e){ toast('⚠️ Upload ຮູບບໍ່ສຳເລັດ','err'); }
+    }
+    await sbInsert({id:Date.now().toString(),plate,out_dt:outDtISO,driver,dest,out_km:km,note:note||null,status:'out',out_img_url:imgUrl});
     drvAdd(driver);toast('✅ ບັນທຶກການອອກສຳເລັດ');
     clearOut();await refreshAll();
   }catch(e){toast('❌ '+e.message,'err');console.error('saveOut error:',e);}
@@ -748,13 +860,35 @@ async function saveIn(){
   if(km<rec.out_km){toast('ເລກໄມກັບຕ້ອງຫຼາຍກວ່າຕອນອອກ','err');return;}
   function addTZ2(dt){const off=-new Date().getTimezoneOffset();const sign=off>=0?'+':'-';const h=String(Math.floor(Math.abs(off)/60)).padStart(2,'0');const mn=String(Math.abs(off)%60).padStart(2,'0');return(dt.length===16?dt+':00':dt)+sign+h+':'+mn;}
   try{
-    await sbUpdate(rec.id,{in_dt:addTZ2(dt),in_km:km,dist:km-rec.out_km,in_note:note,status:'complete'});
+    let inImgUrl = null;
+    if(_inPhotoFile){
+      document.getElementById('btn-in-photo').innerHTML='<span class="spin">⏳</span>';
+      try{ inImgUrl = await uploadPhoto(_inPhotoFile,'in'); }
+      catch(e){ toast('⚠️ Upload ຮູບບໍ່ສຳເລັດ','err'); }
+    }
+    await sbUpdate(rec.id,{in_dt:addTZ2(dt),in_img_url:inImgUrl,in_km:km,dist:km-rec.out_km,in_note:note,status:'complete'});
     toast('🏠 ບັນທຶກການກັບສຳເລັດ');
     clearIn();await refreshAll();
   }catch(e){toast('❌ '+e.message,'err');console.error('saveOut error:',e);}
 }
-function clearOut(){['o-plate','o-driver','o-dest','o-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('o-km').value='';document.getElementById('o-dt').value=toISO(new Date());document.getElementById('o-hint').innerHTML='';}
-function clearIn(){['i-plate','i-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('i-km').value='';document.getElementById('i-dt').value=toISO(new Date());document.getElementById('i-hint').innerHTML='';}
+function clearOut(){
+  ['o-plate','o-driver','o-dest','o-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('o-km').value='';
+  document.getElementById('o-dt').value=toISO(new Date());
+  document.getElementById('o-hint').innerHTML='';
+  _outPhotoFile=null;_outPhotoUrl=null;
+  document.getElementById('out-photo-input').value='';
+  showPhotoPreview('out-photo-preview','btn-out-photo',null,null);
+}
+function clearIn(){
+  ['i-plate','i-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('i-km').value='';
+  document.getElementById('i-dt').value=toISO(new Date());
+  document.getElementById('i-hint').innerHTML='';
+  _inPhotoFile=null;_inPhotoUrl=null;
+  document.getElementById('in-photo-input').value='';
+  showPhotoPreview('in-photo-preview','btn-in-photo',null,null);
+}
 
 function showAC(){
   const val=document.getElementById('o-driver').value.trim(),el=document.getElementById('ac-out');
@@ -801,7 +935,14 @@ function openDetail(id){
       <div class="drow"><div class="drow-label">ເລກໄມກັບ</div><div class="drow-val" style="font-family:'IBM Plex Mono',monospace">${done?fmtN(rec.in_km)+' km':'—'}</div></div>
     </div>
     ${done?`<div class="dist-box"><div style="font-size:28px">📏</div><div><div class="dist-label">ໄລຍະທາງທີ່ໃຊ້</div><div class="dist-num">${fmtN(rec.dist)} km</div></div></div>`:''}
-    ${rec.note||rec.inNote?`<div style="background:var(--off-white);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--gray-600);margin-top:4px;">💬 ${rec.note||rec.inNote}</div>`:''}`;
+    ${rec.note||rec.inNote?`<div style="background:var(--off-white);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--gray-600);margin-top:4px;">💬 ${rec.note||rec.inNote}</div>`:''}
+    ${(rec.out_img_url||rec.in_img_url)?`
+    <div class="sec-title">ຮູບໄມລ໌</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      ${rec.out_img_url?`<div style="text-align:center"><div style="font-size:10px;color:var(--gray-400);margin-bottom:4px;">ຕອນອອກ</div><img src="${rec.out_img_url}" style="width:140px;height:100px;object-fit:cover;border-radius:10px;border:2px solid var(--gray-200);cursor:pointer;" onclick="window.open('${rec.out_img_url}','_blank')"></div>`:''}
+      ${rec.in_img_url?`<div style="text-align:center"><div style="font-size:10px;color:var(--gray-400);margin-bottom:4px;">ຕອນກັບ</div><img src="${rec.in_img_url}" style="width:140px;height:100px;object-fit:cover;border-radius:10px;border:2px solid var(--gray-200);cursor:pointer;" onclick="window.open('${rec.in_img_url}','_blank')"></div>`:''}
+    </div>`:''}
+  `;
   openOv('ov-detail');
 }
 function openEdit(id){
