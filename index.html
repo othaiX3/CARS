@@ -8,9 +8,522 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>LDB ເລກໄມລົດ</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+// ==================== FUEL ====================
+const FUEL_KEY = 'ldb_fuel_v1';
+let _fuelCache = [];
+let _fuPhotoFile = null;
+
+const fuelLoad = async () => {
+  try {
+    const {data,error} = await _sb.from('fuel_log').select('*').order('created_at');
+    if(error) throw error;
+    _fuelCache = data;
+    return data;
+  } catch(e) { console.error('fuel load:',e); return _fuelCache; }
+};
+
+function initFuel() {
+  // Populate plate select
+  const sel = document.getElementById('fu-plate');
+  const fsel = document.getElementById('fu-filter-plate');
+  sel.innerHTML = '<option value="">— ເລືອກລົດ —</option>' + PLATES.map(p=>`<option value="${p}">${pName(p)}</option>`).join('');
+  fsel.innerHTML = '<option value="">ລົດທັງໝົດ</option>' + PLATES.map(p=>`<option value="${p}">${pName(p)}</option>`).join('');
+
+  // Default datetime
+  const now = new Date();
+  document.getElementById('fu-date').value = now.toISOString().split('T')[0];
+  document.getElementById('fu-time').value = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+
+  // Plate change → show last odometer
+  document.getElementById('fu-plate').addEventListener('change', () => {
+    const p = document.getElementById('fu-plate').value;
+    if(!p){ document.getElementById('fu-hint').innerHTML=''; return; }
+    const last = [..._fuelCache].filter(r=>r.plate===p).pop();
+    if(last) document.getElementById('fu-hint').innerHTML = `📍 ໄມຄັ້ງກ່ອນ: <strong>${fmtN(last.odometer)}</strong> km`;
+    else document.getElementById('fu-hint').innerHTML = '📍 ຍັງບໍ່ທັນມີປະຫວັດ';
+  });
+
+  // Photo
+  document.getElementById('btn-fu-photo').addEventListener('click', () => document.getElementById('fu-photo-input').click());
+  document.getElementById('fu-photo-input').addEventListener('change', e => {
+    const file = e.target.files[0]; if(!file) return;
+    _fuPhotoFile = file;
+    const url = URL.createObjectURL(file);
+    const c = document.getElementById('fu-photo-preview');
+    const btn = document.getElementById('btn-fu-photo');
+    c.innerHTML = `<div class="photo-preview"><img src="${url}" onclick="window.open('${url}','_blank')"><button class="btn-remove-photo" id="rm-fu-photo">✕</button></div>`;
+    btn.textContent = '✅ ເລືອກຮູບແລ້ວ'; btn.classList.add('has-photo');
+    document.getElementById('rm-fu-photo').addEventListener('click', () => {
+      _fuPhotoFile = null; document.getElementById('fu-photo-input').value = '';
+      c.innerHTML = ''; btn.innerHTML = '📷 ຖ່າຍ / ເລືອກຮູບ'; btn.classList.remove('has-photo');
+    });
+  });
+
+  // Save
+  document.getElementById('btn-fu-save').addEventListener('click', saveFuel);
+  document.getElementById('btn-fu-clear').addEventListener('click', clearFuel);
+  document.getElementById('fu-filter-plate').addEventListener('change', renderFuelHist);
+}
+
+async function saveFuel() {
+  const plate   = document.getElementById('fu-plate').value;
+  const date    = document.getElementById('fu-date').value;
+  const time    = document.getElementById('fu-time').value;
+  const liters  = parseFloat(document.getElementById('fu-liters').value);
+  const cost    = parseFloat(document.getElementById('fu-cost').value) || null;
+  const odo     = parseInt(document.getElementById('fu-odo').value);
+  const note    = document.getElementById('fu-note').value.trim();
+  if(!plate)  { toast('ກະລຸນາເລືອກລົດ','err'); return; }
+  if(!date)   { toast('ກະລຸນາໃສ່ວັນທີ','err'); return; }
+  if(!liters||liters<=0) { toast('ກະລຸນາໃສ່ຈຳນວນລິດ','err'); return; }
+  if(!odo||odo<=0) { toast('ກະລຸນາໃສ່ເລກໄມ','err'); return; }
+
+  function addTZF(dt){ const off=-new Date().getTimezoneOffset();const sign=off>=0?'+':'-';const h=String(Math.floor(Math.abs(off)/60)).padStart(2,'0');const mn=String(Math.abs(off)%60).padStart(2,'0');return(dt.length===16?dt+':00':dt)+sign+h+':'+mn; }
+  const fill_dt = addTZF(date + 'T' + time);
+
+  try {
+    let receipt_url = null;
+    if(_fuPhotoFile) {
+      document.getElementById('btn-fu-save').textContent = '⏳...';
+      const blob = await compressImage(_fuPhotoFile);
+      const path = `receipts/${Date.now()}.jpg`;
+      const {data,error} = await _sb.storage.from('vehicle-photos').upload(path, blob, {contentType:'image/jpeg',upsert:true});
+      if(!error) { const {data:u} = _sb.storage.from('vehicle-photos').getPublicUrl(path); receipt_url = u.publicUrl; }
+    }
+    await _sb.from('fuel_log').insert({id:Date.now().toString(),plate,fill_dt,liters,total_price:cost,odometer:odo,note:note||null,receipt_url});
+    toast('⛽ ບັນທຶກການໃສ່ນ້ຳມັນສຳເລັດ');
+    clearFuel();
+    await fuelLoad();
+    renderFuelHist();
+    renderFuelStats();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+  document.getElementById('btn-fu-save').textContent = '⛽ ບັນທຶກ';
+}
+
+function clearFuel() {
+  ['fu-plate','fu-note'].forEach(id=>document.getElementById(id).value='');
+  ['fu-liters','fu-cost','fu-odo'].forEach(id=>document.getElementById(id).value='');
+  const now = new Date();
+  document.getElementById('fu-date').value = now.toISOString().split('T')[0];
+  document.getElementById('fu-time').value = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  document.getElementById('fu-hint').innerHTML = '';
+  _fuPhotoFile = null; document.getElementById('fu-photo-input').value = '';
+  document.getElementById('fu-photo-preview').innerHTML = '';
+  const btn = document.getElementById('btn-fu-photo');
+  btn.innerHTML = '📷 ຖ່າຍ / ເລືອກຮູບ'; btn.classList.remove('has-photo');
+}
+
+function renderFuelHist() {
+  const pf = document.getElementById('fu-filter-plate').value;
+  let recs = [..._fuelCache].reverse();
+  if(pf) recs = recs.filter(r=>r.plate===pf);
+  const list = document.getElementById('fu-hist-list');
+  if(!recs.length){ list.innerHTML='<div style="text-align:center;padding:32px 0;color:var(--gray-400);font-size:14px;">ຍັງບໍ່ທັນມີຂໍ້ມູນ</div>'; document.getElementById('fu-hist-count').textContent=''; return; }
+  list.innerHTML = recs.map(r => {
+    const prevRecs = _fuelCache.filter(x=>x.plate===r.plate&&x.fill_dt<r.fill_dt);
+    const prev = prevRecs.length ? prevRecs[prevRecs.length-1] : null;
+    const dist = prev ? r.odometer - prev.odometer : null;
+    const kmL = (dist && r.liters) ? (dist/r.liters).toFixed(1) : null;
+    const kmLColor = kmL ? (parseFloat(kmL)>=10?'color:var(--green)':parseFloat(kmL)<8?'color:var(--red)':'color:var(--navy)') : '';
+    return `<div class="hist-item">
+      <div class="hi-top">
+        <span class="hi-plate">${r.plate}</span>
+        <span class="hi-status complete" style="font-family:'IBM Plex Mono',monospace;">${fmtN(r.liters)} L</span>
+      </div>
+      <div class="hi-mid">
+        <div>
+          <div class="hi-driver">${r.total_price?fmtN(r.total_price)+' ກີບ':'—'}</div>
+          <div class="hi-dest">📍 ໄມ ${fmtN(r.odometer)} km${dist?` · +${fmtN(dist)} km`:''}</div>
+        </div>
+        <div class="hi-km" style="text-align:right">
+          ${kmL?`<div class="hi-km-val" style="${kmLColor}">${kmL}</div><div class="hi-km-lbl">km/L</div>`:'<div class="hi-km-val" style="color:var(--gray-400)">—</div>'}
+        </div>
+      </div>
+      <div class="hi-dt">🕐 ${fmtDT(r.fill_dt)}</div>
+      <div class="hi-actions">
+        ${r.receipt_url?`<button class="hi-btn detail" onclick="window.open('${r.receipt_url}','_blank')">🧾 ໃບຮັບ</button>`:''}
+        <button class="hi-btn del" data-fuel-del="${r.id}">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('fu-hist-count').textContent = `ທັງໝົດ ${recs.length} ລາຍການ`;
+
+  // Delete handlers
+  list.querySelectorAll('[data-fuel-del]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      if(!confirm('ລຶບລາຍການນ້ຳມັນນີ້?')) return;
+      try { await _sb.from('fuel_log').delete().eq('id', btn.dataset.fuelDel); toast('🗑️ ລຶບສຳເລັດ'); await fuelLoad(); renderFuelHist(); renderFuelStats(); }
+      catch(e) { toast('ລຶບບໍ່ສຳເລັດ','err'); }
+    })
+  );
+}
+
+function renderFuelStats() {
+  const month = thisMonth();
+  const done = _fuelCache.filter(r=>r.fill_dt&&r.fill_dt.startsWith(month));
+  const totalL = done.reduce((s,r)=>s+(r.liters||0),0);
+  const totalC = done.reduce((s,r)=>s+(r.total_price||0),0);
+
+  document.getElementById('f-stat-liters').textContent = totalL.toFixed(1);
+  document.getElementById('f-stat-cost').textContent = totalC>=1000000?(totalC/1000000).toFixed(1)+'M':fmtN(Math.round(totalC));
+  document.getElementById('f-stat-count').textContent = done.length;
+
+  // avg km/L from all records this month
+  let totalKm = 0, totalLforKmL = 0;
+  done.forEach(r => {
+    const prevRecs = _fuelCache.filter(x=>x.plate===r.plate&&x.fill_dt<r.fill_dt);
+    const prev = prevRecs.length ? prevRecs[prevRecs.length-1] : null;
+    if(prev && r.liters){ totalKm += r.odometer - prev.odometer; totalLforKmL += r.liters; }
+  });
+  document.getElementById('f-stat-kmL').textContent = totalLforKmL>0 ? (totalKm/totalLforKmL).toFixed(1) : '—';
+}
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">
+// ==================== FUEL ====================
+const FUEL_KEY = 'ldb_fuel_v1';
+let _fuelCache = [];
+let _fuPhotoFile = null;
+
+const fuelLoad = async () => {
+  try {
+    const {data,error} = await _sb.from('fuel_log').select('*').order('created_at');
+    if(error) throw error;
+    _fuelCache = data;
+    return data;
+  } catch(e) { console.error('fuel load:',e); return _fuelCache; }
+};
+
+function initFuel() {
+  // Populate plate select
+  const sel = document.getElementById('fu-plate');
+  const fsel = document.getElementById('fu-filter-plate');
+  sel.innerHTML = '<option value="">— ເລືອກລົດ —</option>' + PLATES.map(p=>`<option value="${p}">${pName(p)}</option>`).join('');
+  fsel.innerHTML = '<option value="">ລົດທັງໝົດ</option>' + PLATES.map(p=>`<option value="${p}">${pName(p)}</option>`).join('');
+
+  // Default datetime
+  const now = new Date();
+  document.getElementById('fu-date').value = now.toISOString().split('T')[0];
+  document.getElementById('fu-time').value = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+
+  // Plate change → show last odometer
+  document.getElementById('fu-plate').addEventListener('change', () => {
+    const p = document.getElementById('fu-plate').value;
+    if(!p){ document.getElementById('fu-hint').innerHTML=''; return; }
+    const last = [..._fuelCache].filter(r=>r.plate===p).pop();
+    if(last) document.getElementById('fu-hint').innerHTML = `📍 ໄມຄັ້ງກ່ອນ: <strong>${fmtN(last.odometer)}</strong> km`;
+    else document.getElementById('fu-hint').innerHTML = '📍 ຍັງບໍ່ທັນມີປະຫວັດ';
+  });
+
+  // Photo
+  document.getElementById('btn-fu-photo').addEventListener('click', () => document.getElementById('fu-photo-input').click());
+  document.getElementById('fu-photo-input').addEventListener('change', e => {
+    const file = e.target.files[0]; if(!file) return;
+    _fuPhotoFile = file;
+    const url = URL.createObjectURL(file);
+    const c = document.getElementById('fu-photo-preview');
+    const btn = document.getElementById('btn-fu-photo');
+    c.innerHTML = `<div class="photo-preview"><img src="${url}" onclick="window.open('${url}','_blank')"><button class="btn-remove-photo" id="rm-fu-photo">✕</button></div>`;
+    btn.textContent = '✅ ເລືອກຮູບແລ້ວ'; btn.classList.add('has-photo');
+    document.getElementById('rm-fu-photo').addEventListener('click', () => {
+      _fuPhotoFile = null; document.getElementById('fu-photo-input').value = '';
+      c.innerHTML = ''; btn.innerHTML = '📷 ຖ່າຍ / ເລືອກຮູບ'; btn.classList.remove('has-photo');
+    });
+  });
+
+  // Save
+  document.getElementById('btn-fu-save').addEventListener('click', saveFuel);
+  document.getElementById('btn-fu-clear').addEventListener('click', clearFuel);
+  document.getElementById('fu-filter-plate').addEventListener('change', renderFuelHist);
+}
+
+async function saveFuel() {
+  const plate   = document.getElementById('fu-plate').value;
+  const date    = document.getElementById('fu-date').value;
+  const time    = document.getElementById('fu-time').value;
+  const liters  = parseFloat(document.getElementById('fu-liters').value);
+  const cost    = parseFloat(document.getElementById('fu-cost').value) || null;
+  const odo     = parseInt(document.getElementById('fu-odo').value);
+  const note    = document.getElementById('fu-note').value.trim();
+  if(!plate)  { toast('ກະລຸນາເລືອກລົດ','err'); return; }
+  if(!date)   { toast('ກະລຸນາໃສ່ວັນທີ','err'); return; }
+  if(!liters||liters<=0) { toast('ກະລຸນາໃສ່ຈຳນວນລິດ','err'); return; }
+  if(!odo||odo<=0) { toast('ກະລຸນາໃສ່ເລກໄມ','err'); return; }
+
+  function addTZF(dt){ const off=-new Date().getTimezoneOffset();const sign=off>=0?'+':'-';const h=String(Math.floor(Math.abs(off)/60)).padStart(2,'0');const mn=String(Math.abs(off)%60).padStart(2,'0');return(dt.length===16?dt+':00':dt)+sign+h+':'+mn; }
+  const fill_dt = addTZF(date + 'T' + time);
+
+  try {
+    let receipt_url = null;
+    if(_fuPhotoFile) {
+      document.getElementById('btn-fu-save').textContent = '⏳...';
+      const blob = await compressImage(_fuPhotoFile);
+      const path = `receipts/${Date.now()}.jpg`;
+      const {data,error} = await _sb.storage.from('vehicle-photos').upload(path, blob, {contentType:'image/jpeg',upsert:true});
+      if(!error) { const {data:u} = _sb.storage.from('vehicle-photos').getPublicUrl(path); receipt_url = u.publicUrl; }
+    }
+    await _sb.from('fuel_log').insert({id:Date.now().toString(),plate,fill_dt,liters,total_price:cost,odometer:odo,note:note||null,receipt_url});
+    toast('⛽ ບັນທຶກການໃສ່ນ້ຳມັນສຳເລັດ');
+    clearFuel();
+    await fuelLoad();
+    renderFuelHist();
+    renderFuelStats();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+  document.getElementById('btn-fu-save').textContent = '⛽ ບັນທຶກ';
+}
+
+function clearFuel() {
+  ['fu-plate','fu-note'].forEach(id=>document.getElementById(id).value='');
+  ['fu-liters','fu-cost','fu-odo'].forEach(id=>document.getElementById(id).value='');
+  const now = new Date();
+  document.getElementById('fu-date').value = now.toISOString().split('T')[0];
+  document.getElementById('fu-time').value = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  document.getElementById('fu-hint').innerHTML = '';
+  _fuPhotoFile = null; document.getElementById('fu-photo-input').value = '';
+  document.getElementById('fu-photo-preview').innerHTML = '';
+  const btn = document.getElementById('btn-fu-photo');
+  btn.innerHTML = '📷 ຖ່າຍ / ເລືອກຮູບ'; btn.classList.remove('has-photo');
+}
+
+function renderFuelHist() {
+  const pf = document.getElementById('fu-filter-plate').value;
+  let recs = [..._fuelCache].reverse();
+  if(pf) recs = recs.filter(r=>r.plate===pf);
+  const list = document.getElementById('fu-hist-list');
+  if(!recs.length){ list.innerHTML='<div style="text-align:center;padding:32px 0;color:var(--gray-400);font-size:14px;">ຍັງບໍ່ທັນມີຂໍ້ມູນ</div>'; document.getElementById('fu-hist-count').textContent=''; return; }
+  list.innerHTML = recs.map(r => {
+    const prevRecs = _fuelCache.filter(x=>x.plate===r.plate&&x.fill_dt<r.fill_dt);
+    const prev = prevRecs.length ? prevRecs[prevRecs.length-1] : null;
+    const dist = prev ? r.odometer - prev.odometer : null;
+    const kmL = (dist && r.liters) ? (dist/r.liters).toFixed(1) : null;
+    const kmLColor = kmL ? (parseFloat(kmL)>=10?'color:var(--green)':parseFloat(kmL)<8?'color:var(--red)':'color:var(--navy)') : '';
+    return `<div class="hist-item">
+      <div class="hi-top">
+        <span class="hi-plate">${r.plate}</span>
+        <span class="hi-status complete" style="font-family:'IBM Plex Mono',monospace;">${fmtN(r.liters)} L</span>
+      </div>
+      <div class="hi-mid">
+        <div>
+          <div class="hi-driver">${r.total_price?fmtN(r.total_price)+' ກີບ':'—'}</div>
+          <div class="hi-dest">📍 ໄມ ${fmtN(r.odometer)} km${dist?` · +${fmtN(dist)} km`:''}</div>
+        </div>
+        <div class="hi-km" style="text-align:right">
+          ${kmL?`<div class="hi-km-val" style="${kmLColor}">${kmL}</div><div class="hi-km-lbl">km/L</div>`:'<div class="hi-km-val" style="color:var(--gray-400)">—</div>'}
+        </div>
+      </div>
+      <div class="hi-dt">🕐 ${fmtDT(r.fill_dt)}</div>
+      <div class="hi-actions">
+        ${r.receipt_url?`<button class="hi-btn detail" onclick="window.open('${r.receipt_url}','_blank')">🧾 ໃບຮັບ</button>`:''}
+        <button class="hi-btn del" data-fuel-del="${r.id}">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('fu-hist-count').textContent = `ທັງໝົດ ${recs.length} ລາຍການ`;
+
+  // Delete handlers
+  list.querySelectorAll('[data-fuel-del]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      if(!confirm('ລຶບລາຍການນ້ຳມັນນີ້?')) return;
+      try { await _sb.from('fuel_log').delete().eq('id', btn.dataset.fuelDel); toast('🗑️ ລຶບສຳເລັດ'); await fuelLoad(); renderFuelHist(); renderFuelStats(); }
+      catch(e) { toast('ລຶບບໍ່ສຳເລັດ','err'); }
+    })
+  );
+}
+
+function renderFuelStats() {
+  const month = thisMonth();
+  const done = _fuelCache.filter(r=>r.fill_dt&&r.fill_dt.startsWith(month));
+  const totalL = done.reduce((s,r)=>s+(r.liters||0),0);
+  const totalC = done.reduce((s,r)=>s+(r.total_price||0),0);
+
+  document.getElementById('f-stat-liters').textContent = totalL.toFixed(1);
+  document.getElementById('f-stat-cost').textContent = totalC>=1000000?(totalC/1000000).toFixed(1)+'M':fmtN(Math.round(totalC));
+  document.getElementById('f-stat-count').textContent = done.length;
+
+  // avg km/L from all records this month
+  let totalKm = 0, totalLforKmL = 0;
+  done.forEach(r => {
+    const prevRecs = _fuelCache.filter(x=>x.plate===r.plate&&x.fill_dt<r.fill_dt);
+    const prev = prevRecs.length ? prevRecs[prevRecs.length-1] : null;
+    if(prev && r.liters){ totalKm += r.odometer - prev.odometer; totalLforKmL += r.liters; }
+  });
+  document.getElementById('f-stat-kmL').textContent = totalLforKmL>0 ? (totalKm/totalLforKmL).toFixed(1) : '—';
+}
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+// ==================== FUEL ====================
+const FUEL_KEY = 'ldb_fuel_v1';
+let _fuelCache = [];
+let _fuPhotoFile = null;
+
+const fuelLoad = async () => {
+  try {
+    const {data,error} = await _sb.from('fuel_log').select('*').order('created_at');
+    if(error) throw error;
+    _fuelCache = data;
+    return data;
+  } catch(e) { console.error('fuel load:',e); return _fuelCache; }
+};
+
+function initFuel() {
+  // Populate plate select
+  const sel = document.getElementById('fu-plate');
+  const fsel = document.getElementById('fu-filter-plate');
+  sel.innerHTML = '<option value="">— ເລືອກລົດ —</option>' + PLATES.map(p=>`<option value="${p}">${pName(p)}</option>`).join('');
+  fsel.innerHTML = '<option value="">ລົດທັງໝົດ</option>' + PLATES.map(p=>`<option value="${p}">${pName(p)}</option>`).join('');
+
+  // Default datetime
+  const now = new Date();
+  document.getElementById('fu-date').value = now.toISOString().split('T')[0];
+  document.getElementById('fu-time').value = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+
+  // Plate change → show last odometer
+  document.getElementById('fu-plate').addEventListener('change', () => {
+    const p = document.getElementById('fu-plate').value;
+    if(!p){ document.getElementById('fu-hint').innerHTML=''; return; }
+    const last = [..._fuelCache].filter(r=>r.plate===p).pop();
+    if(last) document.getElementById('fu-hint').innerHTML = `📍 ໄມຄັ້ງກ່ອນ: <strong>${fmtN(last.odometer)}</strong> km`;
+    else document.getElementById('fu-hint').innerHTML = '📍 ຍັງບໍ່ທັນມີປະຫວັດ';
+  });
+
+  // Photo
+  document.getElementById('btn-fu-photo').addEventListener('click', () => document.getElementById('fu-photo-input').click());
+  document.getElementById('fu-photo-input').addEventListener('change', e => {
+    const file = e.target.files[0]; if(!file) return;
+    _fuPhotoFile = file;
+    const url = URL.createObjectURL(file);
+    const c = document.getElementById('fu-photo-preview');
+    const btn = document.getElementById('btn-fu-photo');
+    c.innerHTML = `<div class="photo-preview"><img src="${url}" onclick="window.open('${url}','_blank')"><button class="btn-remove-photo" id="rm-fu-photo">✕</button></div>`;
+    btn.textContent = '✅ ເລືອກຮູບແລ້ວ'; btn.classList.add('has-photo');
+    document.getElementById('rm-fu-photo').addEventListener('click', () => {
+      _fuPhotoFile = null; document.getElementById('fu-photo-input').value = '';
+      c.innerHTML = ''; btn.innerHTML = '📷 ຖ່າຍ / ເລືອກຮູບ'; btn.classList.remove('has-photo');
+    });
+  });
+
+  // Save
+  document.getElementById('btn-fu-save').addEventListener('click', saveFuel);
+  document.getElementById('btn-fu-clear').addEventListener('click', clearFuel);
+  document.getElementById('fu-filter-plate').addEventListener('change', renderFuelHist);
+}
+
+async function saveFuel() {
+  const plate   = document.getElementById('fu-plate').value;
+  const date    = document.getElementById('fu-date').value;
+  const time    = document.getElementById('fu-time').value;
+  const liters  = parseFloat(document.getElementById('fu-liters').value);
+  const cost    = parseFloat(document.getElementById('fu-cost').value) || null;
+  const odo     = parseInt(document.getElementById('fu-odo').value);
+  const note    = document.getElementById('fu-note').value.trim();
+  if(!plate)  { toast('ກະລຸນາເລືອກລົດ','err'); return; }
+  if(!date)   { toast('ກະລຸນາໃສ່ວັນທີ','err'); return; }
+  if(!liters||liters<=0) { toast('ກະລຸນາໃສ່ຈຳນວນລິດ','err'); return; }
+  if(!odo||odo<=0) { toast('ກະລຸນາໃສ່ເລກໄມ','err'); return; }
+
+  function addTZF(dt){ const off=-new Date().getTimezoneOffset();const sign=off>=0?'+':'-';const h=String(Math.floor(Math.abs(off)/60)).padStart(2,'0');const mn=String(Math.abs(off)%60).padStart(2,'0');return(dt.length===16?dt+':00':dt)+sign+h+':'+mn; }
+  const fill_dt = addTZF(date + 'T' + time);
+
+  try {
+    let receipt_url = null;
+    if(_fuPhotoFile) {
+      document.getElementById('btn-fu-save').textContent = '⏳...';
+      const blob = await compressImage(_fuPhotoFile);
+      const path = `receipts/${Date.now()}.jpg`;
+      const {data,error} = await _sb.storage.from('vehicle-photos').upload(path, blob, {contentType:'image/jpeg',upsert:true});
+      if(!error) { const {data:u} = _sb.storage.from('vehicle-photos').getPublicUrl(path); receipt_url = u.publicUrl; }
+    }
+    await _sb.from('fuel_log').insert({id:Date.now().toString(),plate,fill_dt,liters,total_price:cost,odometer:odo,note:note||null,receipt_url});
+    toast('⛽ ບັນທຶກການໃສ່ນ້ຳມັນສຳເລັດ');
+    clearFuel();
+    await fuelLoad();
+    renderFuelHist();
+    renderFuelStats();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+  document.getElementById('btn-fu-save').textContent = '⛽ ບັນທຶກ';
+}
+
+function clearFuel() {
+  ['fu-plate','fu-note'].forEach(id=>document.getElementById(id).value='');
+  ['fu-liters','fu-cost','fu-odo'].forEach(id=>document.getElementById(id).value='');
+  const now = new Date();
+  document.getElementById('fu-date').value = now.toISOString().split('T')[0];
+  document.getElementById('fu-time').value = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  document.getElementById('fu-hint').innerHTML = '';
+  _fuPhotoFile = null; document.getElementById('fu-photo-input').value = '';
+  document.getElementById('fu-photo-preview').innerHTML = '';
+  const btn = document.getElementById('btn-fu-photo');
+  btn.innerHTML = '📷 ຖ່າຍ / ເລືອກຮູບ'; btn.classList.remove('has-photo');
+}
+
+function renderFuelHist() {
+  const pf = document.getElementById('fu-filter-plate').value;
+  let recs = [..._fuelCache].reverse();
+  if(pf) recs = recs.filter(r=>r.plate===pf);
+  const list = document.getElementById('fu-hist-list');
+  if(!recs.length){ list.innerHTML='<div style="text-align:center;padding:32px 0;color:var(--gray-400);font-size:14px;">ຍັງບໍ່ທັນມີຂໍ້ມູນ</div>'; document.getElementById('fu-hist-count').textContent=''; return; }
+  list.innerHTML = recs.map(r => {
+    const prevRecs = _fuelCache.filter(x=>x.plate===r.plate&&x.fill_dt<r.fill_dt);
+    const prev = prevRecs.length ? prevRecs[prevRecs.length-1] : null;
+    const dist = prev ? r.odometer - prev.odometer : null;
+    const kmL = (dist && r.liters) ? (dist/r.liters).toFixed(1) : null;
+    const kmLColor = kmL ? (parseFloat(kmL)>=10?'color:var(--green)':parseFloat(kmL)<8?'color:var(--red)':'color:var(--navy)') : '';
+    return `<div class="hist-item">
+      <div class="hi-top">
+        <span class="hi-plate">${r.plate}</span>
+        <span class="hi-status complete" style="font-family:'IBM Plex Mono',monospace;">${fmtN(r.liters)} L</span>
+      </div>
+      <div class="hi-mid">
+        <div>
+          <div class="hi-driver">${r.total_price?fmtN(r.total_price)+' ກີບ':'—'}</div>
+          <div class="hi-dest">📍 ໄມ ${fmtN(r.odometer)} km${dist?` · +${fmtN(dist)} km`:''}</div>
+        </div>
+        <div class="hi-km" style="text-align:right">
+          ${kmL?`<div class="hi-km-val" style="${kmLColor}">${kmL}</div><div class="hi-km-lbl">km/L</div>`:'<div class="hi-km-val" style="color:var(--gray-400)">—</div>'}
+        </div>
+      </div>
+      <div class="hi-dt">🕐 ${fmtDT(r.fill_dt)}</div>
+      <div class="hi-actions">
+        ${r.receipt_url?`<button class="hi-btn detail" onclick="window.open('${r.receipt_url}','_blank')">🧾 ໃບຮັບ</button>`:''}
+        <button class="hi-btn del" data-fuel-del="${r.id}">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('fu-hist-count').textContent = `ທັງໝົດ ${recs.length} ລາຍການ`;
+
+  // Delete handlers
+  list.querySelectorAll('[data-fuel-del]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      if(!confirm('ລຶບລາຍການນ້ຳມັນນີ້?')) return;
+      try { await _sb.from('fuel_log').delete().eq('id', btn.dataset.fuelDel); toast('🗑️ ລຶບສຳເລັດ'); await fuelLoad(); renderFuelHist(); renderFuelStats(); }
+      catch(e) { toast('ລຶບບໍ່ສຳເລັດ','err'); }
+    })
+  );
+}
+
+function renderFuelStats() {
+  const month = thisMonth();
+  const done = _fuelCache.filter(r=>r.fill_dt&&r.fill_dt.startsWith(month));
+  const totalL = done.reduce((s,r)=>s+(r.liters||0),0);
+  const totalC = done.reduce((s,r)=>s+(r.total_price||0),0);
+
+  document.getElementById('f-stat-liters').textContent = totalL.toFixed(1);
+  document.getElementById('f-stat-cost').textContent = totalC>=1000000?(totalC/1000000).toFixed(1)+'M':fmtN(Math.round(totalC));
+  document.getElementById('f-stat-count').textContent = done.length;
+
+  // avg km/L from all records this month
+  let totalKm = 0, totalLforKmL = 0;
+  done.forEach(r => {
+    const prevRecs = _fuelCache.filter(x=>x.plate===r.plate&&x.fill_dt<r.fill_dt);
+    const prev = prevRecs.length ? prevRecs[prevRecs.length-1] : null;
+    if(prev && r.liters){ totalKm += r.odometer - prev.odometer; totalLforKmL += r.liters; }
+  });
+  document.getElementById('f-stat-kmL').textContent = totalLforKmL>0 ? (totalKm/totalLforKmL).toFixed(1) : '—';
+}
+
+</script>
 <style>
 :root{
   --navy:#0B2B5C;--navy-light:#1e4a8a;
@@ -303,6 +816,7 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
   <div class="top-tab" data-tab="record">📝 ບັນທຶກ</div>
   <div class="top-tab" data-tab="history">📋 ປະຫວັດ</div>
   <div class="top-tab" data-tab="summary">📈 ສະຫຼຸບ</div>
+  <div class="top-tab" data-tab="fuel">⛽ ນ້ຳມັນ</div>
   <div class="top-tab" data-tab="qr">📱 QR Code</div>
 </div>
 
@@ -419,6 +933,45 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
   <div class="qr-grid" id="qr-grid"></div>
 </div>
 
+
+<!-- FUEL -->
+<div class="tab-content" id="tab-fuel">
+  <div class="stats-grid" style="margin-bottom:16px;">
+    <div class="stat-card gold"><div class="stat-label" id="f-stat-label">ລິດເດືອນນີ້</div><div class="stat-value" id="f-stat-liters">0</div><div class="stat-unit">ລິດ</div></div>
+    <div class="stat-card green"><div class="stat-label">ຄ່ານ້ຳມັນ</div><div class="stat-value" id="f-stat-cost">0</div><div class="stat-unit">ກີບ</div></div>
+    <div class="stat-card navy"><div class="stat-label">ຄັ້ງທີ່ໃສ່</div><div class="stat-value" id="f-stat-count">0</div><div class="stat-unit">ຄັ້ງ</div></div>
+    <div class="stat-card red"><div class="stat-label">ສະເລ່ຍ km/L</div><div class="stat-value" id="f-stat-kmL">—</div><div class="stat-unit">km/L</div></div>
+  </div>
+
+  <div class="form-card">
+    <div class="form-body">
+      <div class="fg"><label class="req">ທະບຽນລົດ</label><select id="fu-plate"><option value="">— ເລືອກລົດ —</option></select></div>
+      <div class="fg"><label class="req">ວັນທີ / ເວລາ</label><div class="dt-split"><input type="date" id="fu-date"><input type="time" id="fu-time"></div></div>
+      <div class="fg"><label class="req">ຈຳນວນລິດ</label><div class="km-wrap"><input type="number" id="fu-liters" placeholder="0" min="0" step="0.1" inputmode="decimal"><span class="km-unit">L</span></div></div>
+      <div class="fg"><label>ຄ່ານ້ຳມັນລວມ</label><div class="km-wrap"><input type="number" id="fu-cost" placeholder="0" min="0" inputmode="numeric"><span class="km-unit" style="font-size:10px;">ກີບ</span></div></div>
+      <div class="fg"><label class="req">ເລກໄມຕອນໃສ່</label><div class="km-wrap"><input type="number" id="fu-odo" placeholder="0" min="0" inputmode="numeric"><span class="km-unit">km</span></div><div class="hint" id="fu-hint"></div></div>
+      <div class="fg"><label>ໝາຍເຫດ</label><input type="text" id="fu-note" placeholder="(ຖ້າມີ)"></div>
+      <div class="fg">
+        <label>ຮູບໃບຮັບເງິນ</label>
+        <div class="km-photo-wrap">
+          <button type="button" class="btn-photo" id="btn-fu-photo" title="ຖ່າຍ/ເລືອກຮູບ" style="width:100%;border-radius:12px;font-size:13px;gap:8px;">📷 ຖ່າຍ / ເລືອກຮູບ</button>
+        </div>
+        <div id="fu-photo-preview"></div>
+        <input type="file" id="fu-photo-input" accept="image/*" capture="environment" style="display:none">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="btn-fu-clear">ລ້າງ</button>
+      <button class="btn btn-navy" id="btn-fu-save">⛽ ບັນທຶກ</button>
+    </div>
+  </div>
+
+  <div class="section-hdr"><div class="section-title">ປະຫວັດ</div>
+    <select class="filter-sel" id="fu-filter-plate" style="border-radius:20px;padding:7px 12px;font-size:12px;"><option value="">ລົດທັງໝົດ</option></select>
+  </div>
+  <div class="hist-list" id="fu-hist-list"></div>
+  <div style="text-align:center;padding:10px 0;font-size:12px;color:var(--gray-400)" id="fu-hist-count"></div>
+</div>
 </main>
 
 <!-- BOTTOM NAV (mobile) -->
@@ -427,6 +980,7 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
   <div class="nav-item" data-tab="record" id="n-record"><div class="nav-icon-wrap"><div class="nav-icon">📝</div></div><div class="nav-label">ບັນທຶກ</div></div>
   <div class="nav-item" data-tab="history" id="n-history"><div class="nav-icon-wrap"><div class="nav-icon">📋</div></div><div class="nav-label">ປະຫວັດ</div></div>
   <div class="nav-item" data-tab="summary" id="n-summary"><div class="nav-icon-wrap"><div class="nav-icon">📈</div></div><div class="nav-label">ສະຫຼຸບ</div></div>
+  <div class="nav-item" data-tab="fuel" id="n-fuel"><div class="nav-icon-wrap"><div class="nav-icon">⛽</div></div><div class="nav-label">ນ້ຳມັນ</div></div>
   <div class="nav-item" data-tab="qr" id="n-qr"><div class="nav-icon-wrap"><div class="nav-icon">📱</div></div><div class="nav-label">QR</div></div>
 </nav>
 
@@ -485,8 +1039,16 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
 const SITE_URL='https://othaix3.github.io/CARS/';
 const SB_URL='https://ffwlrqakhkwvrcqymmnk.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmd2xycWFraGt3dnJjcXltbW5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTIwMDQsImV4cCI6MjA5MzU2ODAwNH0.jHBGwov2Nn19z6ZHIkLWqJdqWuBmorEjiN_klMpy-YM';
-const PLATES=['ລົດຕູ້ ກກ 1518','ລົດຕູ້ ລຣ 9997','REVO ກກ 2493','REVO ລຮ 6668','PARADO ມຂ 6888'];
-const QR_MAP={'ລົດຕູ້ ກກ 1518':'KK1518','ລົດຕູ້ ລຣ 9997':'LR9997','REVO ກກ 2493':'KK2493','REVO ລຮ 6668':'LH6668','PARADO ມຂ 6888':'MK6888'};
+const PLATES=['ກກ 1518','ລຣ 9997','ກກ 2493','ລຮ 6668','ມຂ 6888'];
+const PLATE_NAMES={
+  'ກກ 1518':'ລົດຕູ້ ກກ 1518',
+  'ລຣ 9997':'ລົດຕູ້ ລຣ 9997',
+  'ກກ 2493':'REVO ກກ 2493',
+  'ລຮ 6668':'REVO ລຮ 6668',
+  'ມຂ 6888':'PARADO ມຂ 6888'
+};
+const pName = p => PLATE_NAMES[p] || p;
+const QR_MAP={'ກກ 1518':'KK1518','ລຣ 9997':'LR9997','ກກ 2493':'KK2493','ລຮ 6668':'LH6668','ມຂ 6888':'MK6888'};
 const QR_REVERSE=Object.fromEntries(Object.entries(QR_MAP).map(([k,v])=>[v,k]));
 const DK='ldb_drv_v2';
 let _delId=null;
@@ -525,11 +1087,14 @@ function drvAdd(n){if(!n||!n.trim())return;drvSave([n.trim(),...drvLoad().filter
 function toISO(d){return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
 function fmtDT(iso){
   if(!iso)return'—';
-  // Parse directly to avoid timezone shift
-  const s=iso.slice(0,16); // "2026-05-23T08:56"
-  const [date,time]=s.split('T');
-  const [y,m,d]=date.split('-');
-  return `${d}/${m}/${y} ${time||''}`;
+  const d=new Date(iso);
+  if(isNaN(d)) return iso.slice(0,16).replace('T',' ');
+  const day=d.getDate().toString().padStart(2,'0');
+  const mon=(d.getMonth()+1).toString().padStart(2,'0');
+  const yr=d.getFullYear();
+  const h=d.getHours().toString().padStart(2,'0');
+  const min=d.getMinutes().toString().padStart(2,'0');
+  return `${day}/${mon}/${yr} ${h}:${min}`;
 }
 function fmtN(n){return(n==null||n==='')?'—':Number(n).toLocaleString();}
 function thisMonth(){const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;}
@@ -630,9 +1195,10 @@ document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('o-time').value=timeStr;
   document.getElementById('i-date').value=todayStr;
   document.getElementById('i-time').value=timeStr;
-  document.getElementById('e-plate').innerHTML=PLATES.map(p=>`<option value="${p}">${p}</option>`).join('');
+  document.getElementById('e-plate').innerHTML=PLATES.map(p=>`<option value="${p}">${pName(p)}</option>`).join('');
   initEvents();
   try{initPhotoHandlers();}catch(e){console.error('Photo handler error:',e);}
+  try{initFuel();}catch(e){console.error('Fuel init error:',e);}
   await dbLoad();
   populatePlates();populateFilters();populateDashMonths();renderAll();
   const urlParam=new URLSearchParams(window.location.search).get('p');
@@ -694,13 +1260,13 @@ function initEvents(){
 function populatePlates(){
   ['o-plate','f-plate'].forEach(id=>{
     const sel=document.getElementById(id),first=id==='f-plate'?'<option value="">ລົດທັງໝົດ</option>':'<option value="">— ເລືອກລົດ —</option>';
-    sel.innerHTML=first+PLATES.map(p=>`<option value="${p}">${p}</option>`).join('');
+    sel.innerHTML=first+PLATES.map(p=>`<option value="${p}">${pName(p)}</option>`).join('');
   });
   refreshInPlates();
 }
 function refreshInPlates(){
   const out=(Array.isArray(_cache)?_cache:[]).filter(r=>r.status==='out');
-  document.getElementById('i-plate').innerHTML='<option value="">— ເລືອກລົດ —</option>'+out.map(r=>`<option value="${r.plate}">${r.plate} — ${r.driver}</option>`).join('');
+  document.getElementById('i-plate').innerHTML='<option value="">— ເລືອກລົດ —</option>'+out.map(r=>`<option value="${r.plate}">${pName(r.plate)} — ${r.driver}</option>`).join('');
 }
 function populateDashMonths(){
   const months=[...new Set((Array.isArray(_cache)?_cache:[]).map(r=>r.out_dt?r.out_dt.slice(0,7):'').filter(Boolean))].sort().reverse();
@@ -750,7 +1316,7 @@ function renderDashboard(){
     const lastR=recs.filter(r=>r.plate===p&&r.status==='complete').pop();
     const isOut=!!outR,km=isOut?outR.out_km:(lastR?lastR.in_km:null);
     return`<div class="vc ${isOut?'out':''}" data-plate="${p}">
-      <div class="vc-plate">${p}</div>
+      <div class="vc-plate">${pName(p)}</div>
       <div class="vstatus ${isOut?'out':'in'}"><div class="vdot"></div>${isOut?'ອອກຢູ່':'ຢູ່ທີ່'}</div>
       <div class="vc-km">${isOut?'ໄມຕອນອອກ':'ໄມລ່າສຸດ'}: <span>${fmtN(km)}</span> km</div>
     </div>`;
@@ -759,7 +1325,7 @@ function renderDashboard(){
   const recent=[...recs].reverse().slice(0,5);
   document.getElementById('recentList').innerHTML=recent.length
     ?recent.map(r=>`<div class="recent-item">
-        <span class="ri-plate">${r.plate}</span>
+        <span class="ri-plate">${pName(r.plate)}</span>
         <div class="ri-info"><div class="ri-driver">${r.driver}</div><div class="ri-dest">${r.dest}</div></div>
         <div class="ri-right"><div class="ri-km">${r.status==='complete'?fmtN(r.dist)+' km':'—'}</div><div class="ri-status">${r.status==='complete'?'✅':'🔴'}</div></div>
       </div>`).join('')
@@ -826,7 +1392,7 @@ function renderSummary(){
   document.getElementById('sumVCards').innerHTML=PLATES.map(p=>{
     const pr=recs.filter(r=>r.plate===p&&r.status==='complete');
     const tot=pr.reduce((s,r)=>s+(r.dist||0),0),isOut=!!recs.find(r=>r.plate===p&&r.status==='out');
-    return`<div class="vc ${isOut?'out':''}" data-plate="${p}"><div class="vc-plate">${p}</div><div class="vstatus ${isOut?'out':'in'}"><div class="vdot"></div>${isOut?'ອອກຢູ່':'ຢູ່ທີ່'}</div><div class="vc-km">ລວມ: <span>${fmtN(tot)}</span> km</div><div class="vc-km" style="margin-top:3px">ໃຊ້: <span>${pr.length}</span> ເທື່ອ</div></div>`;
+    return`<div class="vc ${isOut?'out':''}" data-plate="${p}"><div class="vc-plate">${pName(p)}</div><div class="vstatus ${isOut?'out':'in'}"><div class="vdot"></div>${isOut?'ອອກຢູ່':'ຢູ່ທີ່'}</div><div class="vc-km">ລວມ: <span>${fmtN(tot)}</span> km</div><div class="vc-km" style="margin-top:3px">ໃຊ້: <span>${pr.length}</span> ເທື່ອ</div></div>`;
   }).join('');
 }
 
@@ -953,7 +1519,7 @@ function showAC(){
 }
 
 function switchTab(name){
-  ['dashboard','record','history','summary','qr'].forEach(t=>{
+  ['dashboard','record','history','summary','qr','fuel'].forEach(t=>{
     document.getElementById('tab-'+t)?.classList.remove('active');
     document.getElementById('n-'+t)?.classList.remove('active');
     document.querySelector(`.top-tab[data-tab="${t}"]`)?.classList.remove('active');
@@ -979,7 +1545,7 @@ function openDetail(id){
   const rec=_cache.find(r=>r.id===id);if(!rec){toast('ບໍ່ພົບຂໍ້ມູນ','err');return;}
   const done=rec.status==='complete';
   document.getElementById('mb-detail').innerHTML=`
-    <div class="detail-hero"><div><div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase">ທະບຽນ</div><div class="detail-plate">${rec.plate}</div><div class="detail-sub">${rec.driver} · ${rec.dest}</div></div><span class="vstatus ${done?'in':'out'}">${done?'✅ ກັບ':'🔴 ຢູ່ນອກ'}</span></div>
+    <div class="detail-hero"><div><div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase">ທະບຽນ</div><div class="detail-plate">${pName(rec.plate)}</div><div class="detail-sub">${rec.driver} · ${rec.dest}</div></div><span class="vstatus ${done?'in':'out'}">${done?'✅ ກັບ':'🔴 ຢູ່ນອກ'}</span></div>
     <div class="drows">
       <div class="drow"><div class="drow-label">ວັນ-ເວລາອອກ</div><div class="drow-val">${fmtDT(rec.out_dt)}</div></div>
       <div class="drow"><div class="drow-label">ວັນ-ເວລາກັບ</div><div class="drow-val">${done?fmtDT(rec.in_dt):'—'}</div></div>
@@ -1043,9 +1609,9 @@ function openVDetail(plate){
   const outR=all.find(r=>r.status==='out'),totalKm=done.reduce((s,r)=>s+(r.dist||0),0);
   const avg=done.length?Math.round(totalKm/done.length):0,last=done[done.length-1];
   const month=thisMonth(),mDone=done.filter(r=>r.out_dt&&r.out_dt.startsWith(month)),mKm=mDone.reduce((s,r)=>s+(r.dist||0),0);
-  document.getElementById('vd-title').textContent=`🚗 ${plate}`;
+  document.getElementById('vd-title').textContent=`🚗 ${pName(plate)}`;
   document.getElementById('mb-vdetail').innerHTML=`
-    <div class="detail-hero"><div><div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase">ທະບຽນ</div><div class="detail-plate">${plate}</div></div><span class="vstatus ${outR?'out':'in'}">${outR?'🔴 ອອກຢູ່':'✅ ຢູ່ທີ່'}</span></div>
+    <div class="detail-hero"><div><div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase">ທະບຽນ</div><div class="detail-plate">${pName(plate)}</div></div><span class="vstatus ${outR?'out':'in'}">${outR?'🔴 ອອກຢູ່':'✅ ຢູ່ທີ່'}</span></div>
     <div class="vd-stats">
       <div class="vd-stat"><div class="vd-stat-lbl">ໄລຍະລວມ</div><div class="vd-stat-val">${fmtN(totalKm)}</div><div class="vd-stat-unit">km</div></div>
       <div class="vd-stat"><div class="vd-stat-lbl">ເດືອນນີ້</div><div class="vd-stat-val">${fmtN(mKm)}</div><div class="vd-stat-unit">km · ${mDone.length}x</div></div>
@@ -1087,6 +1653,177 @@ function exportExcel(){
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'ເລກໄມລົດ');
   XLSX.writeFile(wb,`LDB_mileage_${mf||'all'}.xlsx`);toast('⬇️ Export ສຳເລັດ');
 }
+
+// ==================== FUEL ====================
+const FUEL_KEY = 'ldb_fuel_v1';
+let _fuelCache = [];
+let _fuPhotoFile = null;
+
+const fuelLoad = async () => {
+  try {
+    const {data,error} = await _sb.from('fuel_log').select('*').order('created_at');
+    if(error) throw error;
+    _fuelCache = data;
+    return data;
+  } catch(e) { console.error('fuel load:',e); return _fuelCache; }
+};
+
+function initFuel() {
+  // Populate plate select
+  const sel = document.getElementById('fu-plate');
+  const fsel = document.getElementById('fu-filter-plate');
+  sel.innerHTML = '<option value="">— ເລືອກລົດ —</option>' + PLATES.map(p=>`<option value="${p}">${pName(p)}</option>`).join('');
+  fsel.innerHTML = '<option value="">ລົດທັງໝົດ</option>' + PLATES.map(p=>`<option value="${p}">${pName(p)}</option>`).join('');
+
+  // Default datetime
+  const now = new Date();
+  document.getElementById('fu-date').value = now.toISOString().split('T')[0];
+  document.getElementById('fu-time').value = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+
+  // Plate change → show last odometer
+  document.getElementById('fu-plate').addEventListener('change', () => {
+    const p = document.getElementById('fu-plate').value;
+    if(!p){ document.getElementById('fu-hint').innerHTML=''; return; }
+    const last = [..._fuelCache].filter(r=>r.plate===p).pop();
+    if(last) document.getElementById('fu-hint').innerHTML = `📍 ໄມຄັ້ງກ່ອນ: <strong>${fmtN(last.odometer)}</strong> km`;
+    else document.getElementById('fu-hint').innerHTML = '📍 ຍັງບໍ່ທັນມີປະຫວັດ';
+  });
+
+  // Photo
+  document.getElementById('btn-fu-photo').addEventListener('click', () => document.getElementById('fu-photo-input').click());
+  document.getElementById('fu-photo-input').addEventListener('change', e => {
+    const file = e.target.files[0]; if(!file) return;
+    _fuPhotoFile = file;
+    const url = URL.createObjectURL(file);
+    const c = document.getElementById('fu-photo-preview');
+    const btn = document.getElementById('btn-fu-photo');
+    c.innerHTML = `<div class="photo-preview"><img src="${url}" onclick="window.open('${url}','_blank')"><button class="btn-remove-photo" id="rm-fu-photo">✕</button></div>`;
+    btn.textContent = '✅ ເລືອກຮູບແລ້ວ'; btn.classList.add('has-photo');
+    document.getElementById('rm-fu-photo').addEventListener('click', () => {
+      _fuPhotoFile = null; document.getElementById('fu-photo-input').value = '';
+      c.innerHTML = ''; btn.innerHTML = '📷 ຖ່າຍ / ເລືອກຮູບ'; btn.classList.remove('has-photo');
+    });
+  });
+
+  // Save
+  document.getElementById('btn-fu-save').addEventListener('click', saveFuel);
+  document.getElementById('btn-fu-clear').addEventListener('click', clearFuel);
+  document.getElementById('fu-filter-plate').addEventListener('change', renderFuelHist);
+}
+
+async function saveFuel() {
+  const plate   = document.getElementById('fu-plate').value;
+  const date    = document.getElementById('fu-date').value;
+  const time    = document.getElementById('fu-time').value;
+  const liters  = parseFloat(document.getElementById('fu-liters').value);
+  const cost    = parseFloat(document.getElementById('fu-cost').value) || null;
+  const odo     = parseInt(document.getElementById('fu-odo').value);
+  const note    = document.getElementById('fu-note').value.trim();
+  if(!plate)  { toast('ກະລຸນາເລືອກລົດ','err'); return; }
+  if(!date)   { toast('ກະລຸນາໃສ່ວັນທີ','err'); return; }
+  if(!liters||liters<=0) { toast('ກະລຸນາໃສ່ຈຳນວນລິດ','err'); return; }
+  if(!odo||odo<=0) { toast('ກະລຸນາໃສ່ເລກໄມ','err'); return; }
+
+  function addTZF(dt){ const off=-new Date().getTimezoneOffset();const sign=off>=0?'+':'-';const h=String(Math.floor(Math.abs(off)/60)).padStart(2,'0');const mn=String(Math.abs(off)%60).padStart(2,'0');return(dt.length===16?dt+':00':dt)+sign+h+':'+mn; }
+  const fill_dt = addTZF(date + 'T' + time);
+
+  try {
+    let receipt_url = null;
+    if(_fuPhotoFile) {
+      document.getElementById('btn-fu-save').textContent = '⏳...';
+      const blob = await compressImage(_fuPhotoFile);
+      const path = `receipts/${Date.now()}.jpg`;
+      const {data,error} = await _sb.storage.from('vehicle-photos').upload(path, blob, {contentType:'image/jpeg',upsert:true});
+      if(!error) { const {data:u} = _sb.storage.from('vehicle-photos').getPublicUrl(path); receipt_url = u.publicUrl; }
+    }
+    await _sb.from('fuel_log').insert({id:Date.now().toString(),plate,fill_dt,liters,total_price:cost,odometer:odo,note:note||null,receipt_url});
+    toast('⛽ ບັນທຶກການໃສ່ນ້ຳມັນສຳເລັດ');
+    clearFuel();
+    await fuelLoad();
+    renderFuelHist();
+    renderFuelStats();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+  document.getElementById('btn-fu-save').textContent = '⛽ ບັນທຶກ';
+}
+
+function clearFuel() {
+  ['fu-plate','fu-note'].forEach(id=>document.getElementById(id).value='');
+  ['fu-liters','fu-cost','fu-odo'].forEach(id=>document.getElementById(id).value='');
+  const now = new Date();
+  document.getElementById('fu-date').value = now.toISOString().split('T')[0];
+  document.getElementById('fu-time').value = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  document.getElementById('fu-hint').innerHTML = '';
+  _fuPhotoFile = null; document.getElementById('fu-photo-input').value = '';
+  document.getElementById('fu-photo-preview').innerHTML = '';
+  const btn = document.getElementById('btn-fu-photo');
+  btn.innerHTML = '📷 ຖ່າຍ / ເລືອກຮູບ'; btn.classList.remove('has-photo');
+}
+
+function renderFuelHist() {
+  const pf = document.getElementById('fu-filter-plate').value;
+  let recs = [..._fuelCache].reverse();
+  if(pf) recs = recs.filter(r=>r.plate===pf);
+  const list = document.getElementById('fu-hist-list');
+  if(!recs.length){ list.innerHTML='<div style="text-align:center;padding:32px 0;color:var(--gray-400);font-size:14px;">ຍັງບໍ່ທັນມີຂໍ້ມູນ</div>'; document.getElementById('fu-hist-count').textContent=''; return; }
+  list.innerHTML = recs.map(r => {
+    const prevRecs = _fuelCache.filter(x=>x.plate===r.plate&&x.fill_dt<r.fill_dt);
+    const prev = prevRecs.length ? prevRecs[prevRecs.length-1] : null;
+    const dist = prev ? r.odometer - prev.odometer : null;
+    const kmL = (dist && r.liters) ? (dist/r.liters).toFixed(1) : null;
+    const kmLColor = kmL ? (parseFloat(kmL)>=10?'color:var(--green)':parseFloat(kmL)<8?'color:var(--red)':'color:var(--navy)') : '';
+    return `<div class="hist-item">
+      <div class="hi-top">
+        <span class="hi-plate">${r.plate}</span>
+        <span class="hi-status complete" style="font-family:'IBM Plex Mono',monospace;">${fmtN(r.liters)} L</span>
+      </div>
+      <div class="hi-mid">
+        <div>
+          <div class="hi-driver">${r.total_price?fmtN(r.total_price)+' ກີບ':'—'}</div>
+          <div class="hi-dest">📍 ໄມ ${fmtN(r.odometer)} km${dist?` · +${fmtN(dist)} km`:''}</div>
+        </div>
+        <div class="hi-km" style="text-align:right">
+          ${kmL?`<div class="hi-km-val" style="${kmLColor}">${kmL}</div><div class="hi-km-lbl">km/L</div>`:'<div class="hi-km-val" style="color:var(--gray-400)">—</div>'}
+        </div>
+      </div>
+      <div class="hi-dt">🕐 ${fmtDT(r.fill_dt)}</div>
+      <div class="hi-actions">
+        ${r.receipt_url?`<button class="hi-btn detail" onclick="window.open('${r.receipt_url}','_blank')">🧾 ໃບຮັບ</button>`:''}
+        <button class="hi-btn del" data-fuel-del="${r.id}">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('fu-hist-count').textContent = `ທັງໝົດ ${recs.length} ລາຍການ`;
+
+  // Delete handlers
+  list.querySelectorAll('[data-fuel-del]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      if(!confirm('ລຶບລາຍການນ້ຳມັນນີ້?')) return;
+      try { await _sb.from('fuel_log').delete().eq('id', btn.dataset.fuelDel); toast('🗑️ ລຶບສຳເລັດ'); await fuelLoad(); renderFuelHist(); renderFuelStats(); }
+      catch(e) { toast('ລຶບບໍ່ສຳເລັດ','err'); }
+    })
+  );
+}
+
+function renderFuelStats() {
+  const month = thisMonth();
+  const done = _fuelCache.filter(r=>r.fill_dt&&r.fill_dt.startsWith(month));
+  const totalL = done.reduce((s,r)=>s+(r.liters||0),0);
+  const totalC = done.reduce((s,r)=>s+(r.total_price||0),0);
+
+  document.getElementById('f-stat-liters').textContent = totalL.toFixed(1);
+  document.getElementById('f-stat-cost').textContent = totalC>=1000000?(totalC/1000000).toFixed(1)+'M':fmtN(Math.round(totalC));
+  document.getElementById('f-stat-count').textContent = done.length;
+
+  // avg km/L from all records this month
+  let totalKm = 0, totalLforKmL = 0;
+  done.forEach(r => {
+    const prevRecs = _fuelCache.filter(x=>x.plate===r.plate&&x.fill_dt<r.fill_dt);
+    const prev = prevRecs.length ? prevRecs[prevRecs.length-1] : null;
+    if(prev && r.liters){ totalKm += r.odometer - prev.odometer; totalLforKmL += r.liters; }
+  });
+  document.getElementById('f-stat-kmL').textContent = totalLforKmL>0 ? (totalKm/totalLforKmL).toFixed(1) : '—';
+}
+
 </script>
 </body>
 </html>
