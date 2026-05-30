@@ -1004,7 +1004,7 @@ select:focus,input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,4
       <div class="edit-group"><label>ຈຸດໝາຍ</label><input type="text" id="e-dest"></div>
       <div class="edit-group"><label>ເລກໄມຕອນອອກ (km)</label><input type="number" id="e-out-km" min="0" inputmode="numeric"></div>
       <div class="edit-group"><label>ໝາຍເຫດ</label><input type="text" id="e-note"></div>
-      <div class="edit-group" id="e-in-dt-grp" style="display:none"><label>ວັນທີ/ເວລາກັບ</label><input type="datetime-local" id="e-in-dt"></div>
+      <div class="edit-grp" id="e-in-dt-grp" style="display:none"><label>ວັນທີ/ເວລາກັບ</label><div class="dt-split"><input type="date" id="e-in-date"><input type="time" id="e-in-time"></div></div>
       <div class="edit-group" id="e-in-km-grp" style="display:none"><label>ເລກໄມຕອນກັບ (km)</label><input type="number" id="e-in-km" min="0" inputmode="numeric"></div>
     </div>
     <div class="modal-foot"><button class="btn btn-ghost" data-close="ov-edit" style="flex:0 0 auto;padding:13px 20px;">ຍົກເລີກ</button><button class="btn btn-navy" id="btn-save-edit">💾 ບັນທຶກ</button></div>
@@ -1085,6 +1085,22 @@ const drvSave=l=>localStorage.setItem(DK,JSON.stringify(l));
 function drvAdd(n){if(!n||!n.trim())return;drvSave([n.trim(),...drvLoad().filter(x=>x!==n.trim())].slice(0,60));}
 
 function toISO(d){return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
+function isoToLocal(iso){
+  if(!iso) return ['',''];
+  const d=new Date(iso);
+  if(isNaN(d)) return ['',''];
+  const date=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0');
+  const time=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+  return [date,time];
+}
+function localToISO(dateStr,timeStr){
+  if(!dateStr||!timeStr) return '';
+  const off=-new Date().getTimezoneOffset();
+  const sign=off>=0?'+':'-';
+  const h=String(Math.floor(Math.abs(off)/60)).padStart(2,'0');
+  const mn=String(Math.abs(off)%60).padStart(2,'0');
+  return dateStr+'T'+timeStr+':00'+sign+h+':'+mn;
+}
 function fmtDT(iso){
   if(!iso)return'—';
   const d=new Date(iso);
@@ -1567,7 +1583,7 @@ function openEdit(id){
   const rec=_cache.find(r=>r.id===id);if(!rec){toast('ບໍ່ພົບຂໍ້ມູນ','err');return;}
   document.getElementById('edit-id').value=rec.id;
   document.getElementById('e-plate').value=rec.plate;
-  const _eout=rec.out_dt?rec.out_dt.slice(0,16).split('T'):['',''];document.getElementById('e-out-date').value=_eout[0];document.getElementById('e-out-time').value=_eout[1]||'';
+  const [_ed,_et]=isoToLocal(rec.out_dt);document.getElementById('e-out-date').value=_ed;document.getElementById('e-out-time').value=_et;
   document.getElementById('e-driver').value=rec.driver;
   document.getElementById('e-dest').value=rec.dest;
   document.getElementById('e-out-km').value=rec.out_km;
@@ -1575,7 +1591,7 @@ function openEdit(id){
   const done=rec.status==='complete';
   document.getElementById('e-in-dt-grp').style.display=done?'':'none';
   document.getElementById('e-in-km-grp').style.display=done?'':'none';
-  if(done){const _ein=rec.in_dt?rec.in_dt.slice(0,16).split('T'):['',''];document.getElementById('e-in-date').value=_ein[0];document.getElementById('e-in-time').value=_ein[1]||'';document.getElementById('e-in-km').value=rec.in_km||'';}
+  if(done){const [_id2,_it2]=isoToLocal(rec.in_dt);document.getElementById('e-in-date').value=_id2;document.getElementById('e-in-time').value=_it2;document.getElementById('e-in-km').value=rec.in_km||'';}
   openOv('ov-edit');
 }
 async function saveEdit(){
@@ -1586,7 +1602,7 @@ async function saveEdit(){
   if(!driver){toast('ກະລຸນາໃສ່ຊື່ຄົນຂັບ','err');return;}
   const done=rec.status==='complete';
   const in_km=done?(parseInt(document.getElementById('e-in-km').value)||rec.in_km):null;
-  const update={plate:document.getElementById('e-plate').value,out_dt:document.getElementById('e-out-date').value+'T'+document.getElementById('e-out-time').value+':00',driver,dest:document.getElementById('e-dest').value.trim(),out_km,note:document.getElementById('e-note').value.trim(),...(done?{in_dt:document.getElementById('e-in-date').value+'T'+document.getElementById('e-in-time').value+':00',in_km,dist:in_km-out_km}:{})};
+  const update={plate:document.getElementById('e-plate').value,out_dt:localToISO(document.getElementById('e-out-date').value,document.getElementById('e-out-time').value),driver,dest:document.getElementById('e-dest').value.trim(),out_km,note:document.getElementById('e-note').value.trim(),...(done?{in_dt:localToISO(document.getElementById('e-in-date').value,document.getElementById('e-in-time').value),in_km,dist:in_km-out_km}:{})};
   try{
     await sbUpdate(id,update);drvAdd(driver);closeOv('ov-edit');
     toast('✏️ ແກ້ໄຂສຳເລັດ');await refreshAll();
