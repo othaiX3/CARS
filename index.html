@@ -632,7 +632,7 @@ async function refresh(){await load();inPlates();filters();dashMonths();renderAl
 document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('hdrDate').textContent=new Date().toLocaleDateString('lo-LA',{day:'numeric',month:'short',year:'numeric'});
   document.getElementById('e-plate').innerHTML=PLATES.map(p=>`<option value="${p}">${full(p)}</option>`).join('');
-  setDT('o-date','o-time');setDT('i-date','i-time');setDT('fu-date','fu-time');
+  setDT('o-date','o-time');setDT('i-date','i-time');
   events();photos();
   await load();
   plates();filters();dashMonths();renderAll();
