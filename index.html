@@ -7,7 +7,6 @@
 <meta name="theme-color" content="#0a0e17">
 <title>LDB Fleet</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -247,12 +246,46 @@ input[type=date],input[type=time]{color-scheme:dark;}
 }
 .fsel.on{border-color:var(--mint);color:var(--mint);background-color:var(--mint-dim);}
 input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
-.xbtn{
-  padding:11px 18px;border-radius:100px;font-size:12.5px;font-weight:600;cursor:pointer;border:none;
-  background:linear-gradient(135deg,var(--gold),#c9a536);color:#0a0e17;white-space:nowrap;flex-shrink:0;
-  font-family:'IBM Plex Sans Thai',sans-serif;box-shadow:0 4px 14px rgba(232,197,71,.25);transition:all .2s;
+
+
+/* DATE RANGE */
+.daterange{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px;margin-bottom:15px;}
+.dr-row{display:flex;align-items:flex-end;gap:10px;}
+.dr-c{flex:1;min-width:0;}
+.dr-c label{font-size:9.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:6px;display:block;}
+.dr-c input{padding:11px 13px;border-radius:13px;font-size:14px;color-scheme:dark;}
+.dr-arrow{color:var(--txt3);font-size:16px;padding-bottom:12px;flex-shrink:0;}
+.dr-x{
+  width:42px;height:42px;border-radius:13px;flex-shrink:0;cursor:pointer;font-size:14px;
+  background:var(--bg2);border:1px solid var(--line);color:var(--txt3);
+  display:flex;align-items:center;justify-content:center;transition:all .2s;
 }
-.xbtn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(232,197,71,.36);}
+.dr-x:hover{border-color:var(--red);color:var(--red);background:var(--red-dim);}
+
+
+/* RANKING */
+.rank-card{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:6px;}
+.rk{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);transition:background .18s;}
+.rk:last-child{border-bottom:none;}
+.rk:hover{background:var(--card2);}
+.rk-no{
+  width:26px;height:26px;border-radius:9px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:600;background:var(--bg2);color:var(--txt3);
+}
+.rk.top1 .rk-no{background:var(--gold-dim);color:var(--gold);}
+.rk.top2 .rk-no{background:rgba(255,255,255,.08);color:var(--txt2);}
+.rk.top3 .rk-no{background:rgba(232,197,71,.07);color:var(--txt2);}
+.rk-body{flex:1;min-width:0;}
+.rk-name{font-size:13px;font-weight:600;letter-spacing:-.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rk-sub{font-size:11px;color:var(--txt3);margin-top:3px;}
+.rk-bar{height:6px;background:var(--bg2);border-radius:100px;overflow:hidden;margin-top:7px;}
+.rk-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--blue),var(--mint));animation:barGrow .8s cubic-bezier(.22,1,.36,1) both;transform-origin:left;}
+.rk.top1 .rk-fill{background:linear-gradient(90deg,var(--gold),#f0d980);}
+.rk-val{text-align:right;flex-shrink:0;}
+.rk-num{font-size:17px;font-weight:600;letter-spacing:-.5px;}
+.rk.top1 .rk-num{color:var(--gold);}
+.rk-unit{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-top:1px;}
 
 /* HISTORY ITEM */
 .hi{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:15px;transition:border-color .2s,transform .18s;}
@@ -401,6 +434,7 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
   .ni-ic{font-size:16px;}
   main{padding:24px;}
   .stats{grid-template-columns:repeat(4,1fr);}
+  #t-rec .stats{grid-template-columns:repeat(2,1fr);max-width:420px;}
   .vgrid{grid-template-columns:repeat(5,1fr);}
   .qgrid{grid-template-columns:repeat(5,1fr);}
   .ov{align-items:center;padding:24px;}
@@ -410,8 +444,7 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
   .twocol{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 }
 @media print{
-  header,.nav,.acts,.xbtn{display:none!important;}
-  .tab{display:none!important;}
+  header,.nav,.acts,  .tab{display:none!important;}
   body{background:#fff!important;color:#000!important;padding:0!important;}
   body::before{display:none;}
 }
@@ -430,33 +463,22 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 </header>
 
 <nav class="nav">
-  <div class="ni on" data-tab="dash" id="n-dash"><div class="ni-ic">◈</div><div class="ni-l">ພາບລວມ</div></div>
-  <div class="ni" data-tab="rec" id="n-rec"><div class="ni-ic">✎</div><div class="ni-l">ບັນທຶກ</div></div>
+  <div class="ni on" data-tab="rec" id="n-rec"><div class="ni-ic">✎</div><div class="ni-l">ບັນທຶກ</div></div>
   <div class="ni" data-tab="hist" id="n-hist"><div class="ni-ic">☰</div><div class="ni-l">ປະຫວັດ</div></div>
   <div class="ni" data-tab="sum" id="n-sum"><div class="ni-ic">◑</div><div class="ni-l">ສະຫຼຸບ</div></div>
 </nav>
 
 <main>
 <!-- DASHBOARD -->
-<div class="tab on" id="t-dash">
-  <div class="sec-hdr anim">
-    <div class="sec-t">ພາບລວມລະບົບ</div>
-    <select class="fsel" id="dashMonth" style="flex:0 0 auto;min-width:auto;"><option value="">ທຸກເດືອນ</option></select>
-  </div>
+<!-- RECORD + OVERVIEW -->
+<div class="tab on" id="t-rec">
   <div class="stats">
-    <div class="stat mint anim d1"><div class="stat-ico">🚗</div><div class="stat-l">ລົດທັງໝົດ</div><div class="stat-v mono">5</div><div class="stat-u">ຄັນ</div></div>
+    <div class="stat mint anim d1"><div class="stat-ico">🚗</div><div class="stat-l">ລົດວ່າງ</div><div class="stat-v mono" id="sFree">5</div><div class="stat-u">ຄັນ</div></div>
     <div class="stat red anim d2"><div class="stat-ico">📍</div><div class="stat-l">ຢູ່ນອກ</div><div class="stat-v mono" id="sOut">0</div><div class="stat-u">ຄັນ</div></div>
-    <div class="stat blue anim d3"><div class="stat-ico">📏</div><div class="stat-l" id="sKmL">ໄລຍະທາງ</div><div class="stat-v mono" id="sKm">0</div><div class="stat-u">ກິໂລແມັດ</div></div>
-    <div class="stat gold anim d4"><div class="stat-ico">🔄</div><div class="stat-l" id="sTrL">ຈຳນວນເທື່ອ</div><div class="stat-v mono" id="sTr">0</div><div class="stat-u">ເທື່ອ</div></div>
   </div>
   <div class="sec-hdr anim d3"><div class="sec-t">ສະຖານະລົດ</div></div>
   <div class="vgrid" id="vCards"></div>
-  <div class="sec-hdr anim d5"><div class="sec-t">ການເຄື່ອນໄຫວລ່າສຸດ</div></div>
-  <div class="list" id="recentList"></div>
-</div>
-
-<!-- RECORD -->
-<div class="tab" id="t-rec">
+  <div class="sec-hdr anim d4"><div class="sec-t">ບັນທຶກການໃຊ້ລົດ</div></div>
   <div class="card anim">
     <div class="seg">
       <div class="seg-b on-out" id="sw-out" data-form="out">🚗 ອອກເດີນທາງ</div>
@@ -465,7 +487,26 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
     <div class="fbody" id="fb-out">
       <div class="fg"><label class="req">ທະບຽນລົດ</label><select id="o-plate"><option value="">— ເລືອກລົດ —</option></select></div>
       <div class="fg"><label class="req">ວັນທີ / ເວລາອອກ</label><div class="dt2"><input type="date" id="o-date"><input type="time" id="o-time"></div></div>
-      <div class="fg"><label class="req">ຊື່ຄົນຂັບ</label><input type="text" id="o-driver" placeholder="ພິມຊື່ຄົນຂັບ..." autocomplete="off"><div class="ac" id="ac-out"></div></div>
+      <div class="fg"><label class="req">ຊື່ຄົນຂັບ</label>
+        <select id="o-driver-sel"><option value="">— ເລືອກຄົນຂັບ —</option><option value="__new__">➕ ເພີ່ມຄົນຂັບໃໝ່</option></select>
+        <div id="new-driver-wrap" style="display:none;margin-top:9px;">
+          <div style="display:flex;gap:9px;">
+            <input type="text" id="o-driver-new" placeholder="ພິມຊື່ຄົນຂັບໃໝ່..." autocomplete="off" style="flex:1">
+            <button type="button" class="cam" id="b-add-driver" style="width:auto;padding:0 16px;font-size:13px;font-weight:600;">💾</button>
+          </div>
+          <div class="hint">ພິມຊື່ແລ້ວກົດ 💾 ເພື່ອບັນທຶກເຂົ້າລາຍຊື່</div>
+        </div>
+      </div>
+      <div class="fg"><label class="req">ຂະແໜງ</label>
+        <select id="o-dept-sel"><option value="">— ເລືອກຂະແໜງ —</option><option value="__new__">➕ ເພີ່ມຂະແໜງໃໝ່</option></select>
+        <div id="new-dept-wrap" style="display:none;margin-top:9px;">
+          <div style="display:flex;gap:9px;">
+            <input type="text" id="o-dept-new" placeholder="ພິມຊື່ຂະແໜງໃໝ່..." autocomplete="off" style="flex:1">
+            <button type="button" class="cam" id="b-add-dept" style="width:auto;padding:0 16px;font-size:13px;font-weight:600;">💾</button>
+          </div>
+          <div class="hint">ພິມຊື່ແລ້ວກົດ 💾 ເພື່ອບັນທຶກເຂົ້າລາຍຊື່</div>
+        </div>
+      </div>
       <div class="fg"><label class="req">ຈຸດໝາຍປາຍທາງ</label><input type="text" id="o-dest" placeholder="ລະບຸສະຖານທີ່..."></div>
       <div class="fg"><label class="req">ເລກໄມຕອນອອກ</label>
         <div class="withcam">
@@ -499,15 +540,22 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
       <button class="btn ok" id="b-save-in">ບັນທຶກການກັບ</button>
     </div>
   </div>
+  <div class="sec-hdr anim d5"><div class="sec-t">ການເຄື່ອນໄຫວລ່າສຸດ</div></div>
+  <div class="list" id="recentList"></div>
 </div>
 
 <!-- HISTORY -->
 <div class="tab" id="t-hist">
   <div class="fbar anim">
-    <select class="fsel" id="f-plate"><option value="">ລົດທັງໝົດ</option></select>
-    <select class="fsel" id="f-month"><option value="">ທຸກເດືອນ</option></select>
-    <input type="date" class="fsel" id="f-date" style="min-width:132px;">
-    <button class="xbtn" id="b-export">⬇ Excel</button>
+    <select class="fsel" id="f-plate" style="flex:1 1 100%;"><option value="">ລົດທັງໝົດ</option></select>
+  </div>
+  <div class="daterange anim d1">
+    <div class="dr-row">
+      <div class="dr-c"><label>ຈາກວັນທີ</label><input type="date" id="f-from"></div>
+      <div class="dr-arrow">→</div>
+      <div class="dr-c"><label>ຫາວັນທີ</label><input type="date" id="f-to"></div>
+      <button class="dr-x" id="f-clear" title="ລ້າງ">✕</button>
+    </div>
   </div>
   <div class="list" id="histList"></div>
   <div style="text-align:center;padding:14px 0;font-size:12px;color:var(--txt3);" id="histCount"></div>
@@ -515,18 +563,19 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 
 <!-- SUMMARY -->
 <div class="tab" id="t-sum">
-  <div class="stats">
-    <div class="stat blue anim d1"><div class="stat-ico">📏</div><div class="stat-l">ໄລຍະລວມເດືອນນີ້</div><div class="stat-v mono" id="suKm">0</div><div class="stat-u">km</div></div>
-    <div class="stat gold anim d2"><div class="stat-ico">🔄</div><div class="stat-l">ຈຳນວນເທື່ອ</div><div class="stat-v mono" id="suTr">0</div><div class="stat-u">ເທື່ອ</div></div>
-    <div class="stat mint anim d3"><div class="stat-ico">📊</div><div class="stat-l">ສະເລ່ຍ/ເທື່ອ</div><div class="stat-v mono" id="suAvg">0</div><div class="stat-u">km</div></div>
-    <div class="stat red anim d4"><div class="stat-ico">🏆</div><div class="stat-l">ໃຊ້ຫຼາຍທີ່ສຸດ</div><div class="stat-v" id="suTop" style="font-size:14px;letter-spacing:0;padding-top:5px;">—</div><div class="stat-u" id="suTopKm"></div></div>
+  <div class="fbar anim">
+    <select class="fsel" id="su-period">
+      <option value="month">ເດືອນນີ້</option>
+      <option value="year">ປີນີ້</option>
+      <option value="">ທັງໝົດ</option>
+    </select>
   </div>
-  <div class="sec-hdr anim d4"><div class="sec-t">ກົດທີ່ລົດເພື່ອເບິ່ງລາຍລະອຽດ</div></div>
-  <div class="vgrid" id="sumVCards" style="margin-bottom:18px;"></div>
-  <div class="twocol">
-    <div class="bcard anim d5"><div class="bcard-h">🚗 ໄລຍະທາງຕໍ່ລົດ</div><div id="barV"></div></div>
-    <div class="bcard anim d6" style="margin-top:14px;"><div class="bcard-h">👤 ຄົນຂັບ</div><div id="barD"></div></div>
-  </div>
+
+  <div class="sec-hdr anim d1"><div class="sec-t">🚗 ລົດທີ່ຂັບຫຼາຍທີ່ສຸດ</div></div>
+  <div class="rank-card anim d2" id="rankV"></div>
+
+  <div class="sec-hdr anim d3"><div class="sec-t">🏢 ຂະແໜງທີ່ໄປຫຼາຍທີ່ສຸດ</div></div>
+  <div class="rank-card anim d4" id="rankD"></div>
 </div>
 
 </main>
@@ -547,7 +596,8 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
       <input type="hidden" id="e-id">
       <div class="eg"><label>ທະບຽນລົດ</label><select id="e-plate"></select></div>
       <div class="eg"><label>ວັນທີ / ເວລາອອກ</label><div class="dt2"><input type="date" id="e-odate"><input type="time" id="e-otime"></div></div>
-      <div class="eg"><label>ຊື່ຄົນຂັບ</label><input type="text" id="e-driver"></div>
+      <div class="eg"><label>ຊື່ຄົນຂັບ</label><select id="e-driver"></select></div>
+      <div class="eg"><label>ຂະແໜງ</label><select id="e-dept"></select></div>
       <div class="eg"><label>ຈຸດໝາຍ</label><input type="text" id="e-dest"></div>
       <div class="eg"><label>ເລກໄມຕອນອອກ (km)</label><input type="number" id="e-okm" min="0" inputmode="numeric"></div>
       <div class="eg"><label>ໝາຍເຫດ</label><input type="text" id="e-note"></div>
@@ -589,15 +639,51 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const PLATES=['ກກ 1518','ລຣ 9997','ກກ 2493','ລຮ 6668','ມຂ 6888'];
 const PNAME={'ກກ 1518':'ລົດຕູ້','ລຣ 9997':'ລົດຕູ້','ກກ 2493':'REVO','ລຮ 6668':'REVO','ມຂ 6888':'PARADO'};
 const PICON={'ກກ 1518':'🚐','ລຣ 9997':'🚐','ກກ 2493':'🛻','ລຮ 6668':'🛻','ມຂ 6888':'🚙'};
-const DK='ldb_drv_v2';
 const full=p=>(PNAME[p]?PNAME[p]+' ':'')+p;
 const ico=p=>PICON[p]||'🚗';
-let _c=[],_del=null,_po=null,_pi=null;
+let _c=[],_drv=[],_dep=[],_del=null,_po=null,_pi=null;
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
-const dl=()=>{try{return JSON.parse(localStorage.getItem(DK))||[];}catch{return[];}};
-const ds=l=>localStorage.setItem(DK,JSON.stringify(l));
-function da(n){if(!n||!n.trim())return;ds([n.trim(),...dl().filter(x=>x!==n.trim())].slice(0,60));}
+async function loadDrivers(){
+  try{const{data,error}=await sb.from('drivers').select('*').order('name');if(error)throw error;_drv=data.map(d=>d.name);return _drv;}
+  catch(e){console.error('drivers:',e);return _drv;}
+}
+async function addDriver(n){
+  n=(n||'').trim();if(!n)return false;
+  if(_drv.includes(n))return true;
+  try{const{error}=await sb.from('drivers').insert({id:Date.now().toString(),name:n});if(error)throw error;await loadDrivers();return true;}
+  catch(e){console.error('add driver:',e);return false;}
+}
+function fillDriverSelects(keep){
+  const s=document.getElementById('o-driver-sel');
+  const cur=keep!==undefined?keep:s.value;
+  s.innerHTML='<option value="">— ເລືອກຄົນຂັບ —</option>'+_drv.map(d=>`<option value="${d}">${d}</option>`).join('')+'<option value="__new__">➕ ເພີ່ມຄົນຂັບໃໝ່</option>';
+  if(cur&&cur!=='__new__')s.value=cur;
+  const e=document.getElementById('e-driver');
+  const ec=e.value;
+  e.innerHTML=_drv.map(d=>`<option value="${d}">${d}</option>`).join('');
+  if(ec)e.value=ec;
+}
+async function loadDepts(){
+  try{const{data,error}=await sb.from('departments').select('*').order('name');if(error)throw error;_dep=data.map(d=>d.name);return _dep;}
+  catch(e){console.error('depts:',e);return _dep;}
+}
+async function addDept(n){
+  n=(n||'').trim();if(!n)return false;
+  if(_dep.includes(n))return true;
+  try{const{error}=await sb.from('departments').insert({id:Date.now().toString(),name:n});if(error)throw error;await loadDepts();return true;}
+  catch(e){console.error('add dept:',e);return false;}
+}
+function fillDeptSelects(keep){
+  const s=document.getElementById('o-dept-sel');
+  const cur=keep!==undefined?keep:s.value;
+  s.innerHTML='<option value="">— ເລືອກຂະແໜງ —</option>'+_dep.map(d=>`<option value="${d}">${d}</option>`).join('')+'<option value="__new__">➕ ເພີ່ມຂະແໜງໃໝ່</option>';
+  if(cur&&cur!=='__new__')s.value=cur;
+  const e=document.getElementById('e-dept');
+  const ec=e.value;
+  e.innerHTML='<option value="">—</option>'+_dep.map(d=>`<option value="${d}">${d}</option>`).join('');
+  if(ec)e.value=ec;
+}
 
 function fmtDT(iso){
   if(!iso)return'—';
@@ -627,15 +713,16 @@ const cOv=i=>document.getElementById(i).classList.remove('open');
 const setDT=(d,t)=>{document.getElementById(d).value=nowD();document.getElementById(t).value=nowT();};
 
 async function load(){try{const{data,error}=await sb.from('vehicle_mileage').select('*').order('created_at');if(error)throw error;_c=data;return data;}catch(e){console.error(e);toast('ເຊື່ອມຕໍ່ບໍ່ໄດ້','err');return _c;}}
-async function refresh(){await load();inPlates();filters();dashMonths();renderAll();}
+async function refresh(){await load();inPlates();renderAll();}
 
 document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('hdrDate').textContent=new Date().toLocaleDateString('lo-LA',{day:'numeric',month:'short',year:'numeric'});
   document.getElementById('e-plate').innerHTML=PLATES.map(p=>`<option value="${p}">${full(p)}</option>`).join('');
   setDT('o-date','o-time');setDT('i-date','i-time');
   events();photos();
-  await load();
-  plates();filters();dashMonths();renderAll();
+  await Promise.all([load(),loadDrivers(),loadDepts()]);
+  fillDriverSelects();fillDeptSelects();
+  plates();renderAll();
 });
 
 function events(){
@@ -648,12 +735,45 @@ function events(){
   document.getElementById('o-plate').addEventListener('change',oPlate);
   document.getElementById('i-plate').addEventListener('change',iPlate);
   document.getElementById('i-km').addEventListener('input',calc);
-  document.getElementById('o-driver').addEventListener('input',ac);
-  document.addEventListener('click',e=>{if(!e.target.closest('#o-driver')&&!e.target.closest('#ac-out'))document.getElementById('ac-out').style.display='none';});
-  document.getElementById('b-export').addEventListener('click',xls);
+  document.getElementById('o-driver-sel').addEventListener('change',e=>{
+    const w=document.getElementById('new-driver-wrap');
+    if(e.target.value==='__new__'){w.style.display='';document.getElementById('o-driver-new').focus();}
+    else{w.style.display='none';document.getElementById('o-driver-new').value='';}
+  });
+  document.getElementById('b-add-driver').addEventListener('click',async()=>{
+    const inp=document.getElementById('o-driver-new'),n=inp.value.trim();
+    if(!n)return toast('ກະລຸນາພິມຊື່','err');
+    const b=document.getElementById('b-add-driver');b.disabled=true;b.textContent='⏳';
+    const ok=await addDriver(n);
+    b.disabled=false;b.textContent='💾';
+    if(ok){fillDriverSelects(n);document.getElementById('new-driver-wrap').style.display='none';inp.value='';toast('✓ ເພີ່ມ '+n+' ແລ້ວ','ok');}
+    else toast('✕ ເພີ່ມບໍ່ສຳເລັດ','err');
+  });
+  document.getElementById('o-driver-new').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById('b-add-driver').click();}});
+  document.getElementById('o-dept-sel').addEventListener('change',e=>{
+    const w=document.getElementById('new-dept-wrap');
+    if(e.target.value==='__new__'){w.style.display='';document.getElementById('o-dept-new').focus();}
+    else{w.style.display='none';document.getElementById('o-dept-new').value='';}
+  });
+  document.getElementById('b-add-dept').addEventListener('click',async()=>{
+    const inp=document.getElementById('o-dept-new'),n=inp.value.trim();
+    if(!n)return toast('ກະລຸນາພິມຊື່','err');
+    const b=document.getElementById('b-add-dept');b.disabled=true;b.textContent='⏳';
+    const ok=await addDept(n);
+    b.disabled=false;b.textContent='💾';
+    if(ok){fillDeptSelects(n);document.getElementById('new-dept-wrap').style.display='none';inp.value='';toast('✓ ເພີ່ມ '+n+' ແລ້ວ','ok');}
+    else toast('✕ ເພີ່ມບໍ່ສຳເລັດ','err');
+  });
+  document.getElementById('o-dept-new').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById('b-add-dept').click();}});
   document.getElementById('f-plate').addEventListener('change',rHist);
-  document.getElementById('f-month').addEventListener('change',()=>{if(document.getElementById('f-month').value)document.getElementById('f-date').value='';rHist();});
-  document.getElementById('f-date').addEventListener('change',()=>{if(document.getElementById('f-date').value)document.getElementById('f-month').value='';rHist();});
+  document.getElementById('f-from').addEventListener('change',rHist);
+  document.getElementById('f-to').addEventListener('change',rHist);
+  document.getElementById('f-clear').addEventListener('click',()=>{
+    document.getElementById('f-from').value='';
+    document.getElementById('f-to').value='';
+    document.getElementById('f-plate').value='';
+    rHist();
+  });
   document.getElementById('histList').addEventListener('click',e=>{
     const b=e.target.closest('[data-act]');if(!b)return;
     const{act,id}=b.dataset;
@@ -664,7 +784,6 @@ function events(){
   document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)cOv(o.id);}));
   document.getElementById('b-save-edit').addEventListener('click',sEdit);
   document.getElementById('b-confirm-del').addEventListener('click',cDel);
-  document.getElementById('dashMonth').addEventListener('change',rDash);
 }
 
 function photos(){
@@ -703,28 +822,12 @@ function inPlates(){
   const o=_c.filter(r=>r.status==='out');
   document.getElementById('i-plate').innerHTML='<option value="">— ເລືອກລົດ —</option>'+o.map(r=>`<option value="${r.plate}">${full(r.plate)} — ${r.driver}</option>`).join('');
 }
-function filters(){
-  const m=[...new Set(_c.map(r=>r.out_dt?r.out_dt.slice(0,7):'').filter(Boolean))].sort().reverse();
-  document.getElementById('f-month').innerHTML='<option value="">ທຸກເດືອນ</option>'+m.map(x=>{const[y,o]=x.split('-');return`<option value="${x}">${o}/${y}</option>`;}).join('');
-}
-function dashMonths(){
-  const m=[...new Set(_c.map(r=>r.out_dt?r.out_dt.slice(0,7):'').filter(Boolean))].sort().reverse();
-  const s=document.getElementById('dashMonth'),c=s.value;
-  s.innerHTML='<option value="">ທຸກເດືອນ</option>'+m.map(x=>{const[y,o]=x.split('-');return`<option value="${x}">${o}/${y}</option>`;}).join('');
-  if(!c){const t=tMon();if(m.includes(t))s.value=t;}else s.value=c;
-}
 function renderAll(){rDash();rHist();rSum();}
 
 function rDash(){
-  const mo=document.getElementById('dashMonth').value;
-  const dn=_c.filter(r=>r.status==='complete'&&(!mo||(r.out_dt&&r.out_dt.startsWith(mo))));
   const on=_c.filter(r=>r.status==='out');
   document.getElementById('sOut').textContent=on.length;
-  document.getElementById('sKm').textContent=fN(dn.reduce((s,r)=>s+(r.dist||0),0));
-  document.getElementById('sTr').textContent=dn.length;
-  const kl=document.getElementById('sKmL'),tl=document.getElementById('sTrL');
-  if(mo){const[y,m]=mo.split('-');kl.textContent='ໄລຍະ '+m+'/'+y;tl.textContent='ເທື່ອ '+m+'/'+y;}
-  else{kl.textContent='ໄລຍະທາງລວມ';tl.textContent='ຈຳນວນເທື່ອລວມ';}
+  document.getElementById('sFree').textContent=PLATES.length-on.length;
   document.getElementById('vCards').innerHTML=PLATES.map((p,i)=>{
     const o=_c.filter(r=>r.plate===p&&r.status==='out').pop();
     const l=_c.filter(r=>r.plate===p&&r.status==='complete').pop();
@@ -739,28 +842,28 @@ function rDash(){
   document.getElementById('recentList').innerHTML=rc.length?rc.map((r,i)=>`
     <div class="row anim" style="animation-delay:${(i+5)*.04}s">
       <span class="tag mono">${r.plate}</span>
-      <div class="row-mid"><div class="row-t">${r.driver}</div><div class="row-s">${r.dest}</div></div>
+      <div class="row-mid"><div class="row-t">${r.driver}</div><div class="row-s">${r.dest}${r.dept?` · ${r.dept}`:''}</div></div>
       <div class="row-r"><div class="row-v mono">${r.status==='complete'?fN(r.dist)+' km':'—'}</div>
       <div style="font-size:11px;margin-top:2px;">${r.status==='complete'?'<span style="color:var(--mint)">✓ ກັບ</span>':'<span style="color:var(--red)">● ຢູ່ນອກ</span>'}</div></div>
     </div>`).join(''):'<div class="empty"><div class="empty-ico">📭</div>ຍັງບໍ່ທັນມີຂໍ້ມູນ</div>';
 }
 
 function rHist(){
-  const pf=document.getElementById('f-plate').value,mf=document.getElementById('f-month').value,df=document.getElementById('f-date').value;
+  const pf=document.getElementById('f-plate').value;
+  const fr=document.getElementById('f-from').value;
+  const to=document.getElementById('f-to').value;
   let r=[..._c].reverse();
   if(pf)r=r.filter(x=>x.plate===pf);
-  if(df)r=r.filter(x=>x.out_dt&&x.out_dt.slice(0,10)===df);
-  else if(mf)r=r.filter(x=>x.out_dt&&x.out_dt.startsWith(mf));
+  if(fr)r=r.filter(x=>x.out_dt&&x.out_dt.slice(0,10)>=fr);
+  if(to)r=r.filter(x=>x.out_dt&&x.out_dt.slice(0,10)<=to);
   document.getElementById('f-plate').className='fsel'+(pf?' on':'');
-  document.getElementById('f-month').className='fsel'+(mf?' on':'');
-  document.getElementById('f-date').className='fsel'+(df?' on':'');
   const l=document.getElementById('histList');
   if(!r.length){l.innerHTML='<div class="empty"><div class="empty-ico">🔍</div>ບໍ່ພົບຂໍ້ມູນ</div>';document.getElementById('histCount').textContent='';return;}
   l.innerHTML=r.map((x,i)=>`
     <div class="hi anim" style="animation-delay:${Math.min(i,8)*.035}s">
       <div class="hi-top"><div><div class="hi-nm">${PNAME[x.plate]||''} <span class="mono" style="color:var(--txt3)">${x.plate}</span></div></div>
       <span class="pill ${x.status==='complete'?'in':'out'}"><span class="pdot"></span>${x.status==='complete'?'ກັບແລ້ວ':'ຢູ່ນອກ'}</span></div>
-      <div class="hi-mid"><div><div class="hi-d">${x.driver}</div><div class="hi-loc">📍 ${x.dest}</div></div>
+      <div class="hi-mid"><div><div class="hi-d">${x.driver}</div><div class="hi-loc">📍 ${x.dest}${x.dept?` · 🏢 ${x.dept}`:''}</div></div>
       <div class="hi-km">${x.status==='complete'?`<div class="hi-kmv mono">${fN(x.dist)}</div><div class="hi-kml">km</div>`:'<div class="hi-kmv mono" style="color:var(--txt3)">—</div>'}</div></div>
       <div class="hi-t">🕐 ${fmtDT(x.out_dt)}${x.status==='complete'?' → '+fmtDT(x.in_dt):''}</div>
       <div class="hi-a">
@@ -769,7 +872,8 @@ function rHist(){
         <button class="ab del" data-act="del" data-id="${x.id}">🗑</button>
       </div>
     </div>`).join('');
-  document.getElementById('histCount').textContent=`ທັງໝົດ ${r.length} ລາຍການ`;
+  const tk=r.filter(x=>x.status==='complete').reduce((s,x)=>s+(x.dist||0),0);
+  document.getElementById('histCount').innerHTML=`ທັງໝົດ <b style="color:var(--txt)">${r.length}</b> ລາຍການ · ໄລຍະລວມ <b style="color:var(--mint)">${fN(tk)}</b> km`;
 }
 
 function rSum(){
@@ -822,22 +926,24 @@ function calc(){
 async function saveOut(){
   const p=document.getElementById('o-plate').value;
   const dt=l2i(document.getElementById('o-date').value,document.getElementById('o-time').value);
-  const dr=document.getElementById('o-driver').value.trim();
+  const dr=document.getElementById('o-driver-sel').value.trim();
+  const dp=document.getElementById('o-dept-sel').value.trim();
   const de=document.getElementById('o-dest').value.trim();
   const km=parseInt(document.getElementById('o-km').value);
   const nt=document.getElementById('o-note').value.trim();
   if(!p)return toast('ກະລຸນາເລືອກລົດ','err');
   if(!dt)return toast('ກະລຸນາໃສ່ວັນທີ','err');
-  if(!dr)return toast('ກະລຸນາໃສ່ຊື່ຄົນຂັບ','err');
+  if(!dr||dr==='__new__')return toast('ກະລຸນາເລືອກຄົນຂັບ','err');
+  if(!dp||dp==='__new__')return toast('ກະລຸນາເລືອກຂະແໜງ','err');
   if(!de)return toast('ກະລຸນາໃສ່ຈຸດໝາຍ','err');
   if(!km||km<=0)return toast('ກະລຸນາໃສ່ເລກໄມ','err');
   if(_c.find(r=>r.plate===p&&r.status==='out'))return toast('ລົດຄັນນີ້ຍັງຢູ່ນອກ!','err');
   const b=document.getElementById('b-save-out');b.disabled=true;b.textContent='ກຳລັງບັນທຶກ...';
   try{
     let u=null;if(_po){try{u=await up(_po,'out');}catch(e){}}
-    const{error}=await sb.from('vehicle_mileage').insert({id:Date.now().toString(),plate:p,out_dt:dt,driver:dr,dest:de,out_km:km,note:nt||null,status:'out',out_img_url:u});
+    const{error}=await sb.from('vehicle_mileage').insert({id:Date.now().toString(),plate:p,out_dt:dt,driver:dr,dept:dp,dest:de,out_km:km,note:nt||null,status:'out',out_img_url:u});
     if(error)throw error;
-    da(dr);toast('✓ ບັນທຶກການອອກສຳເລັດ','ok');clrOut();await refresh();
+    toast('✓ ບັນທຶກການອອກສຳເລັດ','ok');clrOut();await refresh();
   }catch(e){toast('✕ '+e.message,'err');}
   b.disabled=false;b.textContent='ບັນທຶກການອອກ';
 }
@@ -862,7 +968,13 @@ async function saveIn(){
   b.disabled=false;b.textContent='ບັນທຶກການກັບ';
 }
 function clrOut(){
-  ['o-plate','o-driver','o-dest','o-note','o-km'].forEach(i=>document.getElementById(i).value='');
+  ['o-plate','o-dest','o-note','o-km'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('o-driver-sel').value='';
+  document.getElementById('o-driver-new').value='';
+  document.getElementById('new-driver-wrap').style.display='none';
+  document.getElementById('o-dept-sel').value='';
+  document.getElementById('o-dept-new').value='';
+  document.getElementById('new-dept-wrap').style.display='none';
   setDT('o-date','o-time');document.getElementById('o-hint').innerHTML='';
   _po=null;document.getElementById('fi-out').value='';document.getElementById('pv-out').innerHTML='';
   const b=document.getElementById('cam-out');b.textContent='📷';b.classList.remove('has');
@@ -873,18 +985,8 @@ function clrIn(){
   _pi=null;document.getElementById('fi-in').value='';document.getElementById('pv-in').innerHTML='';
   const b=document.getElementById('cam-in');b.textContent='📷';b.classList.remove('has');
 }
-function ac(){
-  const v=document.getElementById('o-driver').value.trim(),e=document.getElementById('ac-out');
-  if(!v)return e.style.display='none';
-  const m=dl().filter(d=>d.includes(v));
-  if(!m.length)return e.style.display='none';
-  e.innerHTML=m.slice(0,5).map(d=>`<div class="ac-i" data-n="${d}">👤 ${d}</div>`).join('');
-  e.style.display='block';
-  e.querySelectorAll('.ac-i').forEach(i=>i.addEventListener('mousedown',ev=>{ev.preventDefault();document.getElementById('o-driver').value=i.dataset.n;e.style.display='none';}));
-}
-
 function tab(n){
-  ['dash','rec','hist','sum'].forEach(t=>{
+  ['rec','hist','sum'].forEach(t=>{
     document.getElementById('t-'+t)?.classList.remove('on');
     document.getElementById('n-'+t)?.classList.remove('on');
   });
@@ -907,7 +1009,7 @@ function oDet(id){
   const r=_c.find(x=>x.id===id);if(!r)return toast('ບໍ່ພົບຂໍ້ມູນ','err');
   const d=r.status==='complete';
   document.getElementById('mb-det').innerHTML=`
-    <div class="hero"><div><div class="hero-l">ທະບຽນລົດ</div><div class="hero-t">${full(r.plate)}</div><div class="hero-s">${r.driver} · ${r.dest}</div></div>
+    <div class="hero"><div><div class="hero-l">ທະບຽນລົດ</div><div class="hero-t">${full(r.plate)}</div><div class="hero-s">${r.driver}${r.dept?` · ${r.dept}`:''} · ${r.dest}</div></div>
     <span class="pill ${d?'in':'out'}"><span class="pdot"></span>${d?'ກັບແລ້ວ':'ຢູ່ນອກ'}</span></div>
     <div class="dgrid">
       <div class="dcell"><div class="dcell-l">ວັນ-ເວລາອອກ</div><div class="dcell-v">${fmtDT(r.out_dt)}</div></div>
@@ -928,7 +1030,12 @@ function oEdit(id){
   document.getElementById('e-id').value=r.id;
   document.getElementById('e-plate').value=r.plate;
   const[od,ot]=i2l(r.out_dt);document.getElementById('e-odate').value=od;document.getElementById('e-otime').value=ot;
-  document.getElementById('e-driver').value=r.driver;
+  const es=document.getElementById('e-driver');
+  if(r.driver&&!_drv.includes(r.driver)){es.innerHTML=`<option value="${r.driver}">${r.driver}</option>`+_drv.map(d=>`<option value="${d}">${d}</option>`).join('');}
+  es.value=r.driver;
+  const ds=document.getElementById('e-dept');
+  if(r.dept&&!_dep.includes(r.dept)){ds.innerHTML=`<option value="${r.dept}">${r.dept}</option>`+_dep.map(d=>`<option value="${d}">${d}</option>`).join('');}
+  ds.value=r.dept||'';
   document.getElementById('e-dest').value=r.dest;
   document.getElementById('e-okm').value=r.out_km;
   document.getElementById('e-note').value=r.note||'';
@@ -942,19 +1049,20 @@ async function sEdit(){
   const id=document.getElementById('e-id').value,r=_c.find(x=>x.id===id);if(!r)return;
   const ok=parseInt(document.getElementById('e-okm').value)||r.out_km;
   const dr=document.getElementById('e-driver').value.trim();
-  if(!dr)return toast('ກະລຸນາໃສ່ຊື່ຄົນຂັບ','err');
+  if(!dr||dr==='__new__')return toast('ກະລຸນາເລືອກຄົນຂັບ','err');
+  if(!dp||dp==='__new__')return toast('ກະລຸນາເລືອກຂະແໜງ','err');
   const d=r.status==='complete';
   const ik=d?(parseInt(document.getElementById('e-ikm').value)||r.in_km):null;
   const u={plate:document.getElementById('e-plate').value,
     out_dt:l2i(document.getElementById('e-odate').value,document.getElementById('e-otime').value),
-    driver:dr,dest:document.getElementById('e-dest').value.trim(),out_km:ok,
+    driver:dr,dept:document.getElementById('e-dept').value.trim()||null,dest:document.getElementById('e-dest').value.trim(),out_km:ok,
     note:document.getElementById('e-note').value.trim()||null,
     ...(d?{in_dt:l2i(document.getElementById('e-idate').value,document.getElementById('e-itime').value),in_km:ik,dist:ik-ok}:{})};
   const b=document.getElementById('b-save-edit');b.disabled=true;b.textContent='ກຳລັງບັນທຶກ...';
   try{
     const{error}=await sb.from('vehicle_mileage').update(u).eq('id',id);
     if(error)throw error;
-    da(dr);cOv('ov-edit');toast('✓ ແກ້ໄຂສຳເລັດ','ok');await refresh();
+    cOv('ov-edit');toast('✓ ແກ້ໄຂສຳເລັດ','ok');await refresh();
   }catch(e){toast('✕ '+e.message,'err');}
   b.disabled=false;b.textContent='ບັນທຶກ';
 }
@@ -989,20 +1097,6 @@ function oVD(p){
       <div style="font-size:11px;color:var(--txt3)">📍 ${r.dest} · 🕐 ${fmtDT(r.out_dt)}</div></div>`).join(''):'<div class="empty" style="padding:24px">ຍັງບໍ່ທັນມີປະຫວັດ</div>'}`;
   oOv('ov-vd');
 }
-function xls(){
-  const pf=document.getElementById('f-plate').value,mf=document.getElementById('f-month').value,df=document.getElementById('f-date').value;
-  let r=[..._c];
-  if(pf)r=r.filter(x=>x.plate===pf);
-  if(df)r=r.filter(x=>x.out_dt&&x.out_dt.slice(0,10)===df);
-  else if(mf)r=r.filter(x=>x.out_dt&&x.out_dt.startsWith(mf));
-  if(!r.length)return toast('ບໍ່ມີຂໍ້ມູນ','err');
-  const rows=[['#','ລົດ','ຄົນຂັບ','ຈຸດໝາຍ','ວັນ-ເວລາອອກ','ໄມອອກ','ວັນ-ເວລາກັບ','ໄມກັບ','ໄລຍະ(km)','ສະຖານະ','ໝາຍເຫດ']];
-  r.forEach((x,i)=>rows.push([i+1,full(x.plate),x.driver,x.dest,fmtDT(x.out_dt),x.out_km,x.in_dt?fmtDT(x.in_dt):'',x.in_km||'',x.dist||'',x.status==='complete'?'ກັບ':'ຢູ່ນອກ',x.note||'']));
-  const ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'ເລກໄມລົດ');
-  XLSX.writeFile(wb,'LDB_mileage.xlsx');toast('⬇ Export ສຳເລັດ','ok');
-}
-
 </script>
 </body>
 </html>
