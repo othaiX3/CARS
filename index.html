@@ -765,6 +765,7 @@ function events(){
     else toast('✕ ເພີ່ມບໍ່ສຳເລັດ','err');
   });
   document.getElementById('o-dept-new').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById('b-add-dept').click();}});
+  document.getElementById('su-period').addEventListener('change',rSum);
   document.getElementById('f-plate').addEventListener('change',rHist);
   document.getElementById('f-from').addEventListener('change',rHist);
   document.getElementById('f-to').addEventListener('change',rHist);
@@ -779,7 +780,7 @@ function events(){
     const{act,id}=b.dataset;
     if(act==='det')oDet(id);else if(act==='edit')oEdit(id);else if(act==='del')oDel(id);
   });
-  ['vCards','sumVCards'].forEach(i=>document.getElementById(i).addEventListener('click',e=>{const c=e.target.closest('[data-plate]');if(c)oVD(c.dataset.plate);}));
+  document.getElementById('vCards').addEventListener('click',e=>{const t=e.target.closest('[data-plate]');if(t)oVD(t.dataset.plate);});
   document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>cOv(b.dataset.close)));
   document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)cOv(o.id);}));
   document.getElementById('b-save-edit').addEventListener('click',sEdit);
@@ -877,29 +878,46 @@ function rHist(){
 }
 
 function rSum(){
-  const mo=tMon();
-  const dn=_c.filter(r=>r.status==='complete'&&r.out_dt&&r.out_dt.startsWith(mo));
-  const tk=dn.reduce((s,r)=>s+(r.dist||0),0),av=dn.length?Math.round(tk/dn.length):0;
-  document.getElementById('suKm').textContent=fN(tk);
-  document.getElementById('suTr').textContent=dn.length;
-  document.getElementById('suAvg').textContent=fN(av);
-  const bp={};PLATES.forEach(p=>bp[p]=0);dn.forEach(r=>bp[r.plate]=(bp[r.plate]||0)+(r.dist||0));
-  const mx=Math.max(...Object.values(bp),1),tp=Object.entries(bp).sort((a,b)=>b[1]-a[1])[0];
-  document.getElementById('suTop').textContent=tp&&tp[1]>0?full(tp[0]):'—';
-  document.getElementById('suTopKm').textContent=tp&&tp[1]>0?fN(tp[1])+' km':'';
-  document.getElementById('barV').innerHTML=PLATES.map((p,i)=>`<div class="brow"><div class="bl">${full(p)}</div><div class="bt"><div class="bf" style="width:${Math.round(bp[p]/mx*100)}%;animation-delay:${i*.07}s"></div></div><div class="bv mono">${fN(bp[p])}</div></div>`).join('');
-  const bd={};dn.forEach(r=>bd[r.driver]=(bd[r.driver]||0)+1);
-  const dz=Object.entries(bd).sort((a,b)=>b[1]-a[1]).slice(0,5),mt=Math.max(...dz.map(d=>d[1]),1);
-  document.getElementById('barD').innerHTML=dz.length?dz.map(([n,c],i)=>`<div class="brow"><div class="bl">${n.split(' ')[0]}</div><div class="bt"><div class="bf" style="width:${Math.round(c/mt*100)}%;animation-delay:${i*.07}s"></div></div><div class="bv mono">${c}x</div></div>`).join(''):'<div class="empty" style="padding:24px">ຍັງບໍ່ມີຂໍ້ມູນ</div>';
-  document.getElementById('sumVCards').innerHTML=PLATES.map((p,i)=>{
-    const pr=_c.filter(r=>r.plate===p&&r.status==='complete'),t=pr.reduce((s,r)=>s+(r.dist||0),0);
-    const isO=!!_c.find(r=>r.plate===p&&r.status==='out');
-    return`<div class="vc ${isO?'out':''} anim" style="animation-delay:${(i+4)*.04}s" data-plate="${p}">
-      <div class="vc-top"><div><div class="vc-name">${PNAME[p]||''}</div><div class="vc-plate mono">${p}</div></div><div class="vc-icon">${ico(p)}</div></div>
-      <span class="pill ${isO?'out':'in'}"><span class="pdot"></span>${isO?'ອອກຢູ່':'ຢູ່ທີ່'}</span>
-      <div class="vc-km">ລວມ <b class="mono">${fN(t)}</b> km</div>
-    </div>`;
-  }).join('');
+  const pd=document.getElementById('su-period').value;
+  const now=new Date();
+  const mo=tMon(), yr=String(now.getFullYear());
+  let dn=_c.filter(r=>r.status==='complete');
+  if(pd==='month')dn=dn.filter(r=>r.out_dt&&r.out_dt.startsWith(mo));
+  else if(pd==='year')dn=dn.filter(r=>r.out_dt&&r.out_dt.startsWith(yr));
+
+  // ===== ອັນດັບລົດ (ຕາມໄລຍະທາງ) =====
+  const bp={};PLATES.forEach(p=>bp[p]={km:0,trips:0});
+  dn.forEach(r=>{if(bp[r.plate]){bp[r.plate].km+=(r.dist||0);bp[r.plate].trips++;}});
+  const vz=Object.entries(bp).sort((a,b)=>b[1].km-a[1].km);
+  const vmax=Math.max(...vz.map(v=>v[1].km),1);
+  const vtot=vz.reduce((s,v)=>s+v[1].km,0);
+  document.getElementById('rankV').innerHTML=vtot>0?vz.map(([p,d],i)=>`
+    <div class="rk ${i<3?'top'+(i+1):''}">
+      <div class="rk-no">${i+1}</div>
+      <div class="rk-body">
+        <div class="rk-name">${ico(p)} ${full(p)}</div>
+        <div class="rk-sub">${d.trips} ເທື່ອ · ${vtot?Math.round(d.km/vtot*100):0}% ຂອງທັງໝົດ</div>
+        <div class="rk-bar"><div class="rk-fill" style="width:${Math.round(d.km/vmax*100)}%;animation-delay:${i*.08}s"></div></div>
+      </div>
+      <div class="rk-val"><div class="rk-num mono">${fN(d.km)}</div><div class="rk-unit">km</div></div>
+    </div>`).join(''):'<div class="empty"><div class="empty-ico">🚗</div>ຍັງບໍ່ມີຂໍ້ມູນ</div>';
+
+  // ===== ອັນດັບຂະແໜງ (ຕາມຈຳນວນເທື່ອ) =====
+  const bd={};
+  dn.forEach(r=>{const k=r.dept||'ບໍ່ໄດ້ລະບຸ';if(!bd[k])bd[k]={trips:0,km:0};bd[k].trips++;bd[k].km+=(r.dist||0);});
+  const dz=Object.entries(bd).sort((a,b)=>b[1].trips-a[1].trips);
+  const dmax=Math.max(...dz.map(d=>d[1].trips),1);
+  const dtot=dz.reduce((s,d)=>s+d[1].trips,0);
+  document.getElementById('rankD').innerHTML=dz.length?dz.map(([n,d],i)=>`
+    <div class="rk ${i<3?'top'+(i+1):''}">
+      <div class="rk-no">${i+1}</div>
+      <div class="rk-body">
+        <div class="rk-name">🏢 ${n}</div>
+        <div class="rk-sub">${fN(d.km)} km · ${dtot?Math.round(d.trips/dtot*100):0}% ຂອງທັງໝົດ</div>
+        <div class="rk-bar"><div class="rk-fill" style="width:${Math.round(d.trips/dmax*100)}%;animation-delay:${i*.08}s"></div></div>
+      </div>
+      <div class="rk-val"><div class="rk-num mono">${d.trips}</div><div class="rk-unit">ເທື່ອ</div></div>
+    </div>`).join(''):'<div class="empty"><div class="empty-ico">🏢</div>ຍັງບໍ່ມີຂໍ້ມູນ</div>';
 }
 
 function oPlate(){
