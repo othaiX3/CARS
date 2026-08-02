@@ -461,7 +461,7 @@ main{max-width:760px;margin:0 auto;padding:18px 14px 24px;position:relative;z-in
 .empty-ico{font-size:36px;opacity:.25;margin-bottom:10px;}
 
 /* FORM */
-.card{background:var(--card);border:1px solid var(--line);border-radius:24px;overflow:hidden;margin-bottom:16px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;margin-bottom:16px;}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:3px;background:var(--bg2);margin:14px;padding:4px;border-radius:16px;}
 .seg-b{
   padding:12px;text-align:center;font-size:12.5px;font-weight:600;border-radius:13px;
@@ -530,7 +530,7 @@ input[type=date],input[type=time]{color-scheme:dark;}
 .btn.dan{background:linear-gradient(135deg,var(--red),#e04a5a);color:#fff;box-shadow:0 6px 20px rgba(255,92,108,.28);}
 
 /* FILTER */
-.fbar{display:flex;gap:9px;margin-bottom:15px;flex-wrap:wrap;}
+.fbar{display:flex;gap:9px;margin-bottom:15px;flex-wrap:wrap;position:relative;z-index:5;}
 .fsel{
   flex:1;min-width:112px;padding:11px 15px;border-radius:100px;font-size:12.5px;
   background:var(--card);border:1px solid var(--line);color:var(--txt2);outline:none;
@@ -558,7 +558,7 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 
 
 /* RANKING */
-.rank-card{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:6px;}
+.rank-card{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:6px;position:relative;}
 .rk{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);transition:background .18s;}
 .rk:last-child{border-bottom:none;}
 .rk:hover{background:var(--card2);}
@@ -716,14 +716,36 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 
 /* DESKTOP */
 
-#dtp-backdrop{
+#dtp-backdrop,#sel-backdrop{
   display:none;position:fixed;inset:0;z-index:590;
   background:rgba(0,0,0,.55);backdrop-filter:blur(3px);
   opacity:0;transition:opacity .25s;
 }
-#dtp-backdrop.on{display:block;opacity:1;}
-@media(min-width:760px){#dtp-backdrop{display:none!important;}}
+#dtp-backdrop.on,#sel-backdrop.on{display:block;opacity:1;}
+@media(min-width:760px){#dtp-backdrop,#sel-backdrop{display:none!important;}}
 
+
+
+/* ===== MOBILE SHEETS (select + picker) ===== */
+@media(max-width:759px){
+  .sel-menu{
+    position:fixed!important;top:auto!important;bottom:0!important;left:0!important;right:0!important;
+    width:100%;max-width:100%;border-radius:24px 24px 0 0;z-index:601;
+    max-height:0;transform:translateY(100%);transform-origin:center bottom;
+    box-shadow:0 -14px 44px rgba(0,0,0,.7);
+    padding-bottom:env(safe-area-inset-bottom);
+    transition:max-height .3s cubic-bezier(.22,1,.36,1),opacity .2s,visibility .3s,transform .32s cubic-bezier(.22,1,.36,1);
+  }
+  .sel-menu.open{max-height:62vh;transform:translateY(0);overflow-y:auto;}
+  .sel-menu::before{
+    content:'';display:block;width:38px;height:4px;border-radius:100px;
+    background:var(--line2);margin:12px auto 8px;
+  }
+  .sel-opt{padding:15px 18px;font-size:15.5px;}
+  .sel-opt:hover{padding-left:18px;}
+
+  .dtp-pop{z-index:601;}
+}
 
 /* ===== HISTORY MOBILE FIX ===== */
 @media(max-width:759px){
@@ -1166,6 +1188,7 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 </div>
 
 <div id="dtp-backdrop"></div>
+<div id="sel-backdrop" style="z-index:600"></div>
 <div class="toast" id="toast"></div>
 <script>
 const SB_URL='https://ffwlrqakhkwvrcqymmnk.supabase.co';
@@ -1261,7 +1284,7 @@ function initDate(id,onChange){
   const btn=w.querySelector('.dtp-btn'),pop=w.querySelector('.dtp-pop');
   btn.addEventListener('click',e=>{
     e.stopPropagation();
-    const o=pop.classList.contains('open');closeDTP();
+    const o=pop.classList.contains('open');closeDTP();closeAllSel();
     if(!o){
       const v=document.getElementById(id).value;
       _dtp[id].view=v?new Date(v+'T00:00:00'):new Date();
@@ -1328,7 +1351,7 @@ function initTime(id,onChange){
   const btn=w.querySelector('.dtp-btn'),pop=w.querySelector('.dtp-pop');
   btn.addEventListener('click',e=>{
     e.stopPropagation();
-    const o=pop.classList.contains('open');closeDTP();
+    const o=pop.classList.contains('open');closeDTP();closeAllSel();
     if(!o){drawTime(id);pop.classList.add('open');btn.classList.add('open');openDTPSheet();
       if(w.getBoundingClientRect().left>window.innerWidth-320)pop.classList.add('right');}
   });
@@ -1405,7 +1428,7 @@ function closeDTP(){
   document.querySelectorAll('.dtp-btn.open').forEach(b=>b.classList.remove('open'));
   const bd=document.getElementById('dtp-backdrop');
   if(bd)bd.classList.remove('on');
-  document.body.style.overflow='';
+  if(!document.querySelector('.sel-menu.open'))document.body.style.overflow='';
 }
 function openDTPSheet(){
   if(window.innerWidth<760){
@@ -1428,8 +1451,15 @@ function initSel(id,opts,onChange){
     btn.addEventListener('click',e=>{
       e.stopPropagation();
       const isOpen=menu.classList.contains('open');
-      closeAllSel();
-      if(!isOpen){menu.classList.add('open');btn.classList.add('open');}
+      closeAllSel();closeDTP();
+      if(!isOpen){
+        menu.classList.add('open');btn.classList.add('open');
+        if(window.innerWidth<760){
+          const bd=document.getElementById('sel-backdrop');
+          if(bd)bd.classList.add('on');
+          document.body.style.overflow='hidden';
+        }
+      }
     });
   }
   renderSelMenu(id);
@@ -1477,8 +1507,16 @@ function setSel(id,v){
 function closeAllSel(){
   document.querySelectorAll('.sel-menu.open').forEach(m=>m.classList.remove('open'));
   document.querySelectorAll('.sel-btn.open').forEach(b=>b.classList.remove('open'));
+  const bd=document.getElementById('sel-backdrop');
+  if(bd)bd.classList.remove('on');
+  if(!document.querySelector('.dtp-pop.open'))document.body.style.overflow='';
 }
 document.addEventListener('click',()=>closeAllSel());
+document.addEventListener('DOMContentLoaded',()=>{
+  const sb2=document.getElementById('sel-backdrop'),db=document.getElementById('dtp-backdrop');
+  if(sb2)sb2.addEventListener('click',e=>{e.stopPropagation();closeAllSel();});
+  if(db)db.addEventListener('click',e=>{e.stopPropagation();closeDTP();});
+});
 // store placeholders
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.sel-wrap').forEach(w=>{
