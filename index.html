@@ -543,7 +543,7 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 
 
 /* DATE RANGE */
-.daterange{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px;margin-bottom:15px;}
+.daterange{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px;margin-bottom:15px;position:relative;}
 .dr-row{display:flex;align-items:flex-end;gap:10px;}
 .dr-c{flex:1;min-width:0;}
 .dr-c label{font-size:9.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:6px;display:block;}
@@ -723,6 +723,50 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 }
 #dtp-backdrop.on{display:block;opacity:1;}
 @media(min-width:760px){#dtp-backdrop{display:none!important;}}
+
+
+/* ===== HISTORY MOBILE FIX ===== */
+@media(max-width:759px){
+  /* date range — 2 rows, clear inline */
+  .daterange{padding:12px;border-radius:17px;}
+  .dr-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;}
+  .dr-c{min-width:0;}
+  .dr-c label{font-size:9px;margin-bottom:5px;}
+  .dr-arrow{display:none;}
+  .dr-x{width:46px;height:46px;border-radius:14px;font-size:15px;}
+  .dtp-btn{padding:12px 34px 12px 12px;min-height:46px;font-size:13.5px;}
+  .dtp-val{font-size:13.5px;}
+  .dtp-btn .dtp-ic{right:11px;font-size:13px;}
+
+  /* history card — prevent overflow */
+  .hi{padding:13px;border-radius:17px;}
+  .hi-top{gap:8px;margin-bottom:9px;}
+  .hi-nm{font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .hi-top .pill{flex-shrink:0;font-size:9.5px;padding:3px 8px;}
+  .hi-mid{gap:10px;margin-bottom:9px;align-items:flex-start;}
+  .hi-mid > div:first-child{flex:1;min-width:0;}
+  .hi-d{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hi-loc{font-size:11px;line-height:1.5;word-break:break-word;}
+  .hi-km{min-width:56px;}
+  .hi-kmv{font-size:16px;}
+  .hi-t{font-size:10.5px;padding-top:9px;margin-bottom:9px;line-height:1.6;word-break:break-word;}
+  .hi-a{gap:6px;}
+  .ab{padding:11px 4px;font-size:11.5px;gap:4px;min-width:0;}
+  .ab.del{padding:11px 13px;}
+
+  /* count line wraps nicely */
+  #histCount{font-size:11.5px;line-height:1.7;padding:12px 8px!important;}
+
+  /* filter select full width */
+  .fbar{gap:8px;margin-bottom:12px;}
+}
+@media(max-width:380px){
+  .ab{font-size:10.5px;padding:11px 2px;}
+  .ab.del{padding:11px 10px;}
+  .hi-kmv{font-size:15px;}
+  .dr-row{grid-template-columns:1fr 1fr;}
+  .dr-x{grid-column:1/-1;width:100%;height:42px;}
+}
 
 /* ===== MOBILE OPTIMIZATION ===== */
 @media(max-width:759px){
@@ -1610,13 +1654,13 @@ function rHist(){
       <div class="hi-km">${x.status==='complete'?`<div class="hi-kmv mono">${fN(x.dist)}</div><div class="hi-kml">km</div>`:'<div class="hi-kmv mono" style="color:var(--txt3)">—</div>'}</div></div>
       <div class="hi-t">🕐 ${fmtDT(x.out_dt)}${x.status==='complete'?' → '+fmtDT(x.in_dt):''}</div>
       <div class="hi-a">
-        <button class="ab det" data-act="det" data-id="${x.id}">🔍 ລາຍລະອຽດ</button>
-        <button class="ab edt" data-act="edit" data-id="${x.id}">✎ ແກ້ໄຂ</button>
+        <button class="ab det" data-act="det" data-id="${x.id}">🔍 <span class="ab-t">ລາຍລະອຽດ</span></button>
+        <button class="ab edt" data-act="edit" data-id="${x.id}">✎ <span class="ab-t">ແກ້ໄຂ</span></button>
         <button class="ab del" data-act="del" data-id="${x.id}">🗑</button>
       </div>
     </div>`).join('');
   const tk=r.filter(x=>x.status==='complete').reduce((s,x)=>s+(x.dist||0),0);
-  document.getElementById('histCount').innerHTML=`ທັງໝົດ <b style="color:var(--txt)">${r.length}</b> ລາຍການ · ໄລຍະລວມ <b style="color:var(--mint)">${fN(tk)}</b> km`;
+  document.getElementById('histCount').innerHTML=`<b style="color:var(--txt)">${r.length}</b> ລາຍການ &nbsp;·&nbsp; ໄລຍະລວມ <b style="color:var(--mint)">${fN(tk)}</b> km`;
 }
 
 function rSum(){
