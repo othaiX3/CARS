@@ -726,6 +726,11 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 
 
 
+
+/* ===== PORTAL (popups rendered at body level) ===== */
+#portal{position:fixed;top:0;left:0;width:0;height:0;z-index:600;}
+#portal .sel-menu,#portal .dtp-pop{position:fixed;}
+
 /* ===== MOBILE SHEETS (select + picker) ===== */
 @media(max-width:759px){
   .sel-menu{
@@ -1187,6 +1192,7 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
   </div>
 </div>
 
+<div id="portal"></div>
 <div id="dtp-backdrop"></div>
 <div id="sel-backdrop" style="z-index:600"></div>
 <div class="toast" id="toast"></div>
@@ -1273,6 +1279,27 @@ const oOv=i=>document.getElementById(i).classList.add('open');
 const cOv=i=>document.getElementById(i).classList.remove('open');
 const setDT=(d,t)=>{setDTPVal(d,nowD());setDTPVal(t,nowT());};
 
+
+// ===== PORTAL =====
+function toPortal(el,btn,isSheet){
+  const P=document.getElementById('portal');
+  if(el.parentElement!==P){el._home=el.parentElement;P.appendChild(el);}
+  if(window.innerWidth<760){
+    el.style.cssText='position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;max-width:100%;';
+  }else{
+    const r=btn.getBoundingClientRect();
+    const w=Math.max(r.width,260);
+    let left=r.left, top=r.bottom+7;
+    if(left+w>window.innerWidth-12)left=window.innerWidth-w-12;
+    if(left<12)left=12;
+    el.style.cssText=`position:fixed;left:${left}px;top:${top}px;width:${w}px;max-width:none;bottom:auto;right:auto;`;
+  }
+}
+function fromPortal(el){
+  el.style.cssText='';
+  if(el._home&&el.parentElement!==el._home){el._home.appendChild(el);}
+}
+
 // ===== DATE / TIME PICKER ENGINE =====
 const LAO_M=['ມັງກອນ','ກຸມພາ','ມີນາ','ເມສາ','ພຶດສະພາ','ມິຖຸນາ','ກໍລະກົດ','ສິງຫາ','ກັນຍາ','ຕຸລາ','ພະຈິກ','ທັນວາ'];
 const DOW=['ອາ','ຈ','ອ','ພ','ພຫ','ສ','ເສົາ'];
@@ -1288,8 +1315,7 @@ function initDate(id,onChange){
     if(!o){
       const v=document.getElementById(id).value;
       _dtp[id].view=v?new Date(v+'T00:00:00'):new Date();
-      drawCal(id);pop.classList.add('open');btn.classList.add('open');openDTPSheet();
-      if(w.getBoundingClientRect().left>window.innerWidth-320)pop.classList.add('right');
+      drawCal(id);toPortal(pop,btn);pop.classList.add('open');btn.classList.add('open');openDTPSheet();
     }
   });
   pop.addEventListener('click',e=>e.stopPropagation());
@@ -1352,8 +1378,7 @@ function initTime(id,onChange){
   btn.addEventListener('click',e=>{
     e.stopPropagation();
     const o=pop.classList.contains('open');closeDTP();closeAllSel();
-    if(!o){drawTime(id);pop.classList.add('open');btn.classList.add('open');openDTPSheet();
-      if(w.getBoundingClientRect().left>window.innerWidth-320)pop.classList.add('right');}
+    if(!o){drawTime(id);toPortal(pop,btn);pop.classList.add('open');btn.classList.add('open');openDTPSheet();}
   });
   pop.addEventListener('click',e=>e.stopPropagation());
   syncTime(id);
@@ -1424,7 +1449,7 @@ function setDTPVal(id,v){
   if(_dtp[id]){_dtp[id].type==='date'?syncDate(id):syncTime(id);}
 }
 function closeDTP(){
-  document.querySelectorAll('.dtp-pop.open').forEach(p=>{p.classList.remove('open','right');});
+  document.querySelectorAll('.dtp-pop.open').forEach(p=>{p.classList.remove('open','right');setTimeout(()=>fromPortal(p),320);});
   document.querySelectorAll('.dtp-btn.open').forEach(b=>b.classList.remove('open'));
   const bd=document.getElementById('dtp-backdrop');
   if(bd)bd.classList.remove('on');
@@ -1453,6 +1478,7 @@ function initSel(id,opts,onChange){
       const isOpen=menu.classList.contains('open');
       closeAllSel();closeDTP();
       if(!isOpen){
+        toPortal(menu,btn);
         menu.classList.add('open');btn.classList.add('open');
         if(window.innerWidth<760){
           const bd=document.getElementById('sel-backdrop');
@@ -1505,7 +1531,7 @@ function setSel(id,v){
   el.value=v||'';syncSelBtn(id);renderSelMenu(id);
 }
 function closeAllSel(){
-  document.querySelectorAll('.sel-menu.open').forEach(m=>m.classList.remove('open'));
+  document.querySelectorAll('.sel-menu.open').forEach(m=>{m.classList.remove('open');setTimeout(()=>fromPortal(m),320);});
   document.querySelectorAll('.sel-btn.open').forEach(b=>b.classList.remove('open'));
   const bd=document.getElementById('sel-backdrop');
   if(bd)bd.classList.remove('on');
