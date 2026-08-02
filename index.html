@@ -2,8 +2,11 @@
 <html lang="lo">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LDB Fleet">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0e17">
 <title>LDB CARS TAG</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -327,7 +330,8 @@ img.brand-logo{
 
 /* HEADER */
 header{
-  height:var(--hdr-h);padding:0 18px;position:sticky;top:0;z-index:200;
+  height:calc(var(--hdr-h) + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) 18px 0;position:sticky;top:0;z-index:200;
   display:flex;align-items:center;justify-content:space-between;
   background:rgba(10,14,23,.75);backdrop-filter:blur(20px) saturate(160%);
   border-bottom:1px solid var(--line);
@@ -711,6 +715,136 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 .toast.ok{background:linear-gradient(135deg,rgba(62,224,196,.16),var(--card2));border-color:rgba(62,224,196,.4);color:var(--mint);}
 
 /* DESKTOP */
+
+#dtp-backdrop{
+  display:none;position:fixed;inset:0;z-index:590;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(3px);
+  opacity:0;transition:opacity .25s;
+}
+#dtp-backdrop.on{display:block;opacity:1;}
+@media(min-width:760px){#dtp-backdrop{display:none!important;}}
+
+/* ===== MOBILE OPTIMIZATION ===== */
+@media(max-width:759px){
+  main{padding:14px 12px 22px;}
+  header{padding:0 14px;}
+  .brand-t{font-size:12.5px;}
+  .brand-s{font-size:9px;}
+  .brand-logo{width:32px;height:32px;}
+  .hdr-chip{padding:6px 11px;font-size:10px;}
+
+  /* stat cards */
+  .stat{padding:14px 13px;border-radius:17px;}
+  .stat-v{font-size:23px;}
+  .stat-ico{width:29px;height:29px;font-size:14px;margin-bottom:9px;}
+
+  /* vehicle cards */
+  .vc{padding:13px;border-radius:17px;}
+  .vc-name{font-size:11.5px;}
+  .vc-plate{font-size:10px;}
+  .vc-icon{width:27px;height:27px;font-size:13px;}
+  .vc-km b{font-size:13px;}
+
+  /* forms — bigger touch targets */
+  .card{border-radius:20px;}
+  .fbody{padding:4px 14px 14px;}
+  .seg{margin:12px;}
+  .seg-b{padding:13px 8px;font-size:12px;}
+  .sel-btn,.dtp-btn{min-height:52px;font-size:15px;}
+  input{min-height:52px;font-size:16px!important;}
+  .numwrap input{font-size:20px;}
+  .cam{width:52px;height:52px;}
+  .acts{padding:0 14px 14px;}
+  .btn{padding:15px;font-size:14.5px;border-radius:15px;}
+  .btn.ghost{padding:15px 18px;}
+
+  /* dropdowns full-width on mobile */
+  .sel-menu.open{max-height:52vh;}
+  .sel-opt{padding:15px;font-size:15px;}
+
+  /* date-time picker → centered sheet */
+  .dtp-pop{
+    position:fixed;top:auto;bottom:0;left:0;right:0;
+    width:100%;min-width:0;max-width:100%;
+    border-radius:24px 24px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom));
+    transform:translateY(100%);transform-origin:center bottom;
+    max-height:82vh;overflow-y:auto;
+  }
+  .dtp-pop.open{transform:translateY(0);}
+  .dtp-pop.right{left:0;right:0;}
+  .dtp-pop::before{
+    content:'';display:block;width:38px;height:4px;border-radius:100px;
+    background:var(--line2);margin:-4px auto 14px;
+  }
+  .cal-d{font-size:15px;border-radius:13px;}
+  .cal-dow span{font-size:11px;}
+  .cal-my{font-size:15px;}
+  .cal-nav{width:38px;height:38px;font-size:16px;}
+  .tp-col{height:186px;}
+  .tp-i{padding:12px;font-size:16px;}
+  .tp-disp{font-size:38px;}
+  .tp-q{padding:11px 4px;font-size:12px;}
+  .dtp-b{padding:13px;font-size:13.5px;}
+
+  /* date range stack */
+  .dr-row{flex-wrap:wrap;gap:9px;}
+  .dr-c{flex:1 1 100%;}
+  .dr-arrow{display:none;}
+  .dr-x{width:100%;height:44px;border-radius:14px;}
+
+  /* history */
+  .hi{padding:14px;border-radius:17px;}
+  .hi-d{font-size:13.5px;}
+  .hi-kmv{font-size:16px;}
+  .ab{padding:12px 6px;font-size:12px;}
+  .ab.del{padding:12px 16px;}
+
+  /* ranking */
+  .rk{padding:13px 14px;gap:10px;}
+  .rk-name{font-size:12.5px;}
+  .rk-num{font-size:16px;}
+
+  /* modal */
+  .md{border-radius:24px 24px 0 0;max-height:90vh;}
+  .md-b{padding:0 16px 16px;}
+  .md-f{padding:12px 16px calc(18px + env(safe-area-inset-bottom));}
+  .md-t{font-size:15px;}
+  .dgrid,.vdg{grid-template-columns:1fr 1fr;gap:8px;}
+  .dcell,.vdc{padding:11px 12px;}
+  .hero{padding:15px;border-radius:17px;}
+  .hero-t{font-size:15.5px;}
+
+  /* nav — safe area */
+  .nav{padding-bottom:env(safe-area-inset-bottom);height:calc(var(--nav-h) + env(safe-area-inset-bottom));}
+  .ni-ic{font-size:20px;}
+  .ni-l{font-size:9.5px;}
+
+  /* splash */
+  .sp-logo{width:86px;height:86px;}
+  .sp-hello{font-size:26px;}
+  .sp-ring{width:132px;height:132px;top:-23px;}
+  .sp-ring.r2{width:160px;height:160px;top:-37px;}
+
+  /* toast above nav */
+  .toast{bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px);font-size:13px;padding:12px 20px;max-width:88vw;white-space:normal;text-align:center;}
+}
+
+/* very small phones */
+@media(max-width:360px){
+  .stats{gap:8px;}
+  .stat-v{font-size:21px;}
+  .vgrid{gap:8px;}
+  .ni-l{font-size:8.5px;}
+  .seg-b{font-size:11px;padding:12px 5px;}
+}
+
+/* landscape phones */
+@media(max-height:500px) and (orientation:landscape){
+  .dtp-pop{max-height:88vh;}
+  .tp-col{height:130px;}
+  .md{max-height:94vh;}
+}
+
 @media(min-width:760px){
   body{padding-bottom:0;}
   .nav{
@@ -987,6 +1121,7 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
   </div>
 </div>
 
+<div id="dtp-backdrop"></div>
 <div class="toast" id="toast"></div>
 <script>
 const SB_URL='https://ffwlrqakhkwvrcqymmnk.supabase.co';
@@ -1086,7 +1221,7 @@ function initDate(id,onChange){
     if(!o){
       const v=document.getElementById(id).value;
       _dtp[id].view=v?new Date(v+'T00:00:00'):new Date();
-      drawCal(id);pop.classList.add('open');btn.classList.add('open');
+      drawCal(id);pop.classList.add('open');btn.classList.add('open');openDTPSheet();
       if(w.getBoundingClientRect().left>window.innerWidth-320)pop.classList.add('right');
     }
   });
@@ -1150,7 +1285,7 @@ function initTime(id,onChange){
   btn.addEventListener('click',e=>{
     e.stopPropagation();
     const o=pop.classList.contains('open');closeDTP();
-    if(!o){drawTime(id);pop.classList.add('open');btn.classList.add('open');
+    if(!o){drawTime(id);pop.classList.add('open');btn.classList.add('open');openDTPSheet();
       if(w.getBoundingClientRect().left>window.innerWidth-320)pop.classList.add('right');}
   });
   pop.addEventListener('click',e=>e.stopPropagation());
@@ -1224,6 +1359,16 @@ function setDTPVal(id,v){
 function closeDTP(){
   document.querySelectorAll('.dtp-pop.open').forEach(p=>{p.classList.remove('open','right');});
   document.querySelectorAll('.dtp-btn.open').forEach(b=>b.classList.remove('open'));
+  const bd=document.getElementById('dtp-backdrop');
+  if(bd)bd.classList.remove('on');
+  document.body.style.overflow='';
+}
+function openDTPSheet(){
+  if(window.innerWidth<760){
+    const bd=document.getElementById('dtp-backdrop');
+    if(bd)bd.classList.add('on');
+    document.body.style.overflow='hidden';
+  }
 }
 document.addEventListener('click',()=>closeDTP());
 
