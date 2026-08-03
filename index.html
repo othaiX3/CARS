@@ -69,7 +69,7 @@ body::before{
 .sel-menu{
   position:absolute;top:calc(100% + 7px);left:0;right:0;z-index:120;
   background:var(--card2);border:1px solid var(--line2);border-radius:17px;
-  box-shadow:0 18px 46px rgba(0,0,0,.62);overflow:hidden;
+  box-shadow:0 18px 46px rgba(0,0,0,.62);overflow:hidden;z-index:9300;
   max-height:0;opacity:0;visibility:hidden;
   transition:max-height .3s cubic-bezier(.22,1,.36,1),opacity .22s,visibility .3s,transform .3s cubic-bezier(.22,1,.36,1);
   transform:translateY(-8px) scale(.98);transform-origin:top center;
@@ -127,7 +127,7 @@ body::before{
 .dtp-val{font-family:'Space Grotesk',monospace;font-weight:500;letter-spacing:-.2px;}
 
 .dtp-pop{
-  position:absolute;top:calc(100% + 8px);left:0;z-index:600;min-width:296px;
+  position:absolute;top:calc(100% + 8px);left:0;z-index:9300;min-width:296px;
   background:var(--card2);border:1px solid var(--line2);border-radius:20px;padding:16px;
   overflow:hidden;
   box-shadow:0 22px 56px rgba(0,0,0,.68);
@@ -202,7 +202,7 @@ body::before{
 
 /* ===== SAVING OVERLAY ===== */
 #saving{
-  position:fixed;inset:0;z-index:9998;display:none;
+  position:fixed;inset:0;z-index:9500;display:none;
   align-items:center;justify-content:center;
   background:rgba(10,14,23,.86);backdrop-filter:blur(12px);
 }
@@ -643,7 +643,7 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 
 /* MODAL */
 .ov{
-  display:none;position:fixed;inset:0;z-index:500;align-items:flex-end;justify-content:center;
+  display:none;position:fixed;inset:0;z-index:9000;align-items:flex-end;justify-content:center;
   background:rgba(0,0,0,.7);backdrop-filter:blur(6px);
 }
 .ov.open{display:flex;animation:fadeIn .22s ease both;}
@@ -717,8 +717,8 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 /* DESKTOP */
 
 #dtp-backdrop,#sel-backdrop{
-  display:none;position:fixed;inset:0;z-index:590;
-  background:rgba(0,0,0,.55);backdrop-filter:blur(3px);
+  display:none;position:fixed;inset:0;z-index:9100;
+  background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
   opacity:0;transition:opacity .25s;
 }
 #dtp-backdrop.on,#sel-backdrop.on{display:block;opacity:1;}
@@ -728,14 +728,14 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 
 
 /* ===== PORTAL (popups rendered at body level) ===== */
-#portal{position:fixed;top:0;left:0;width:0;height:0;z-index:600;}
-#portal .sel-menu,#portal .dtp-pop{position:fixed;}
+#portal{position:fixed;top:0;left:0;width:0;height:0;z-index:9200;}
+#portal .sel-menu,#portal .dtp-pop{position:fixed;z-index:9300;}
 
 /* ===== MOBILE SHEETS (select + picker) ===== */
 @media(max-width:759px){
   .sel-menu{
     position:fixed!important;top:auto!important;bottom:0!important;left:0!important;right:0!important;
-    width:100%;max-width:100%;border-radius:24px 24px 0 0;z-index:601;
+    width:100%;max-width:100%;border-radius:24px 24px 0 0;z-index:9300;
     max-height:0;transform:translateY(100%);transform-origin:center bottom;
     box-shadow:0 -14px 44px rgba(0,0,0,.7);
     padding-bottom:env(safe-area-inset-bottom);
@@ -749,7 +749,7 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
   .sel-opt{padding:15px 18px;font-size:15.5px;}
   .sel-opt:hover{padding-left:18px;}
 
-  .dtp-pop{z-index:601;}
+  .dtp-pop{z-index:9300;}
 }
 
 /* ===== HISTORY MOBILE FIX ===== */
@@ -1194,7 +1194,7 @@ input.fsel{background-image:none;padding-right:15px;color-scheme:dark;}
 
 <div id="portal"></div>
 <div id="dtp-backdrop"></div>
-<div id="sel-backdrop" style="z-index:600"></div>
+<div id="sel-backdrop"></div>
 <div class="toast" id="toast"></div>
 <script>
 const SB_URL='https://ffwlrqakhkwvrcqymmnk.supabase.co';
@@ -1307,8 +1307,8 @@ const _dtp={};
 
 function initDate(id,onChange){
   const w=document.querySelector(`[data-dtp="${id}"]`);if(!w)return;
-  _dtp[id]={type:'date',w,onChange,view:new Date()};
   const btn=w.querySelector('.dtp-btn'),pop=w.querySelector('.dtp-pop');
+  _dtp[id]={type:'date',w,onChange,view:new Date(),btn,pop};
   btn.addEventListener('click',e=>{
     e.stopPropagation();
     const o=pop.classList.contains('open');closeDTP();closeAllSel();
@@ -1322,7 +1322,7 @@ function initDate(id,onChange){
   syncDate(id);
 }
 function drawCal(id){
-  const D=_dtp[id],pop=D.w.querySelector('.dtp-pop');
+  const D=_dtp[id],pop=D.pop;
   const v=document.getElementById(id).value;
   const y=D.view.getFullYear(),m=D.view.getMonth();
   const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate();
@@ -1365,7 +1365,8 @@ function drawCal(id){
 }
 function syncDate(id){
   const D=_dtp[id];if(!D)return;
-  const btn=D.w.querySelector('.dtp-btn'),v=document.getElementById(id).value;
+  const btn=D.btn;if(!btn)return;
+  const v=document.getElementById(id).value;
   const el=btn.querySelector('.dtp-val');
   if(v){const[y,m,d]=v.split('-');el.textContent=`${d}/${m}/${y}`;btn.classList.remove('ph');}
   else{el.textContent='ເລືອກວັນທີ';btn.classList.add('ph');}
@@ -1373,8 +1374,8 @@ function syncDate(id){
 
 function initTime(id,onChange){
   const w=document.querySelector(`[data-dtp="${id}"]`);if(!w)return;
-  _dtp[id]={type:'time',w,onChange};
   const btn=w.querySelector('.dtp-btn'),pop=w.querySelector('.dtp-pop');
+  _dtp[id]={type:'time',w,onChange,btn,pop};
   btn.addEventListener('click',e=>{
     e.stopPropagation();
     const o=pop.classList.contains('open');closeDTP();closeAllSel();
@@ -1384,7 +1385,7 @@ function initTime(id,onChange){
   syncTime(id);
 }
 function drawTime(id){
-  const D=_dtp[id],pop=D.w.querySelector('.dtp-pop');
+  const D=_dtp[id],pop=D.pop;
   const v=document.getElementById(id).value||nowT();
   const[H,M]=v.split(':');
   const hh=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
@@ -1438,7 +1439,8 @@ function drawTime(id){
 }
 function syncTime(id){
   const D=_dtp[id];if(!D)return;
-  const btn=D.w.querySelector('.dtp-btn'),v=document.getElementById(id).value;
+  const btn=D.btn;if(!btn)return;
+  const v=document.getElementById(id).value;
   const el=btn.querySelector('.dtp-val');
   if(v){el.textContent=v;btn.classList.remove('ph');}
   else{el.textContent='ເລືອກເວລາ';btn.classList.add('ph');}
@@ -1469,8 +1471,9 @@ const _selData={};
 function initSel(id,opts,onChange){
   const w=document.querySelector(`[data-sel="${id}"]`);
   if(!w)return;
-  _selData[id]={opts,onChange,w};
-  const btn=w.querySelector('.sel-btn'),menu=w.querySelector('.sel-menu');
+  const btn=w.querySelector('.sel-btn');
+  const menu=w.querySelector('.sel-menu')||(_selData[id]&&_selData[id].menu);
+  _selData[id]={opts,onChange,w,btn,menu};
   if(!btn.dataset.wired){
     btn.dataset.wired='1';
     btn.addEventListener('click',e=>{
@@ -1493,7 +1496,7 @@ function initSel(id,opts,onChange){
 }
 function renderSelMenu(id){
   const D=_selData[id];if(!D)return;
-  const menu=D.w.querySelector('.sel-menu');
+  const menu=D.menu;if(!menu)return;
   const cur=document.getElementById(id).value;
   if(!D.opts.length){menu.innerHTML='<div class="sel-empty">ຍັງບໍ່ມີຂໍ້ມູນ</div>';return;}
   menu.innerHTML=D.opts.map((o,i)=>`
@@ -1512,7 +1515,7 @@ function renderSelMenu(id){
 }
 function syncSelBtn(id){
   const D=_selData[id];if(!D)return;
-  const btn=D.w.querySelector('.sel-btn');
+  const btn=D.btn;if(!btn)return;
   const v=document.getElementById(id).value;
   const o=D.opts.find(x=>x.v===v);
   const icoEl=btn.querySelector('.sel-ico'),txtEl=btn.querySelector('.sel-txt');
