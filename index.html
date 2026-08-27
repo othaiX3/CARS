@@ -115,6 +115,13 @@ body{
   background:var(--bg2);border:1px solid var(--line);font-size:11.5px;color:var(--txt2);font-weight:600;
 }
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:blink 2.4s ease-in-out infinite;}
+.sync-tag{
+  display:flex;align-items:center;gap:5px;flex:none;padding:6px 10px;border-radius:8px;
+  background:var(--ok-dim);color:var(--ok);font-size:11px;font-weight:700;white-space:nowrap;
+  opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .25s,transform .25s,visibility .25s;
+}
+.sync-tag.on{opacity:1;visibility:visible;transform:none;}
+.sync-tag .ic{width:13px;height:13px;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
 .hdr-logo{height:30px;object-fit:contain;flex:none;}
 
@@ -753,6 +760,8 @@ body.loading{overflow:hidden;}
   #histCount{font-size:12px;line-height:1.7;}
 }
 @media(max-width:380px){
+  .sync-tag span:last-child{display:none;}
+  .sync-tag{padding:6px;}
   .ab{font-size:11px;padding:11px 3px;}
   .ab .ic{width:14px;height:14px;}
   .ab.del{padding:11px 11px;}
@@ -849,7 +858,7 @@ body.loading{overflow:hidden;}
     <div class="sb-i" data-tab="hist" id="n-hist"><span data-ic="list"></span><span class="sb-tx">ປະຫວັດການໃຊ້ລົດ</span></div>
     <div class="sb-i" data-tab="sum" id="n-sum"><span data-ic="chart"></span><span class="sb-tx">ສະຫຼຸບລາຍງານ</span></div>
   </nav>
-  <div class="sb-foot">ລະບົບຕິດຕາມການໃຊ້ລົດ · v2.2</div>
+  <div class="sb-foot">ລະບົບຕິດຕາມການໃຊ້ລົດ · v2.3</div>
 </aside>
 <div class="sb-mask" id="sbMask"></div>
 
@@ -858,6 +867,7 @@ body.loading{overflow:hidden;}
   <header class="hdr">
     <button class="burger" id="burger" aria-label="ເມນູ" data-ic="menu"></button>
     <div class="hdr-t" id="pageTitle">ບັນທຶກການໃຊ້ລົດ</div>
+    <div class="sync-tag" id="syncTag"><span data-ic="check"></span><span>ອັບເດດແລ້ວ</span></div>
     <div class="hdr-chip"><span class="live-dot"></span><span id="hdrDate"></span></div>
     <img class="hdr-logo logo-img" alt="LDB">
   </header>
@@ -1212,7 +1222,8 @@ const full=p=>(PNAME[p]?PNAME[p]+' ':'')+p;
 const icoN=p=>PICON[p]||'car';
 const ico=(p,cls)=>svg(icoN(p),cls);
 const TITLES={rec:'ບັນທຶກການໃຊ້ລົດ',hist:'ປະຫວັດການໃຊ້ລົດ',sum:'ສະຫຼຸບລາຍງານ'};
-let _c=[],_drv=[],_dep=[],_del=null,_odel=null,_po=null,_pi=null;
+let _c=[],_drv=[],_dep=[],_del=null,_odel=null,_po=null,_pi=null,_noAnim=false;
+const AN=()=>_noAnim?'':'anim';
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 /* ================= SIDEBAR ================= */
@@ -1317,7 +1328,7 @@ const tMon=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMont
 const fN=n=>(n==null||n==='')?'—':Number(n).toLocaleString();
 function toast(m,t='ok'){const e=document.getElementById('toast');e.textContent=m;e.className=`toast ${t} show`;setTimeout(()=>e.classList.remove('show'),2900);}
 const oOv=i=>document.getElementById(i).classList.add('open');
-const cOv=i=>document.getElementById(i).classList.remove('open');
+const cOv=i=>{document.getElementById(i).classList.remove('open');if(typeof _syncPend!=='undefined'&&_syncPend)setTimeout(()=>{if(syncable())syncNow();},250);};
 const setDT=(d,t)=>{setDTPVal(d,nowD());setDTPVal(t,nowT());liveOn(d);liveOn(t);};
 
 /* ================= PORTAL ================= */
@@ -1851,11 +1862,70 @@ function savingDone(txt,sub){
 function savingFail(){document.getElementById('saving').classList.remove('on','done');}
 
 /* ================= LOAD ================= */
-async function load(){
+async function load(quiet){
   try{const{data,error}=await sb.from('vehicle_mileage').select('*').order('created_at');if(error)throw error;_c=data;return data;}
-  catch(e){console.error(e);toast('ເຊື່ອມຕໍ່ບໍ່ໄດ້','err');return _c;}
+  catch(e){console.error(e);if(!quiet)toast('ເຊື່ອມຕໍ່ບໍ່ໄດ້','err');return _c;}
 }
 async function refresh(){await load();inPlates();renderAll();}
+
+/* ================= ອັບເດດອັດຕະໂນມັດ (REALTIME + ສຳຮອງດ້ວຍການກວດເປັນໄລຍະ) =================
+   ຫຼັກການ: ດຶງຂໍ້ມູນຢູ່ເບື້ອງຫຼັງ → ຖ້າມີການປ່ຽນແປງຈິງຈຶ່ງແຕ້ມໃໝ່
+   ແລະ ຈະບໍ່ແຕ້ມໃໝ່ຕອນຜູ້ໃຊ້ກຳລັງເປີດເມນູ / ປະຕິທິນ / ໜ້າຕ່າງ ຫຼື ກຳລັງບັນທຶກ */
+let _syncBusy=false,_syncPend=false,_syncT=null;
+function syncable(){
+  if(document.getElementById('saving').classList.contains('on'))return false;
+  if(document.querySelector('.ov.open'))return false;
+  if(document.querySelector('.cb-menu.open')||document.querySelector('.sel-menu.open')||document.querySelector('.dtp-pop.open'))return false;
+  return true;
+}
+function cbBusy(id){
+  const D=_cb[id];
+  return !!D&&((D.menu&&D.menu.classList.contains('open'))||document.activeElement===D.inp);
+}
+function snap(){
+  return JSON.stringify(_c.map(r=>[r.id,r.status,r.plate,r.driver,r.dept,r.dest,r.out_dt,r.in_dt,r.out_km,r.in_km,r.dist,r.note,r.in_note,r.out_img_url,r.in_img_url]))
+    +'|'+_drv.join('~')+'|'+_dep.join('~');
+}
+function scheduleSync(ms){clearTimeout(_syncT);_syncT=setTimeout(syncNow,ms||700);}
+async function syncNow(){
+  if(_syncBusy)return;
+  if(!syncable()){_syncPend=true;return;}
+  _syncBusy=true;_syncPend=false;
+  try{
+    const before=snap();
+    await Promise.all([load(true),loadDrivers(),loadDepts()]);
+    if(snap()!==before)applySync();
+  }catch(e){console.error('sync:',e);}
+  _syncBusy=false;
+}
+function applySync(){
+  _noAnim=true;
+  renderAll();
+  if(!cbBusy('i-plate'))inPlates();
+  if(!cbBusy('o-driver-sel')&&!cbBusy('e-driver'))fillDriverSelects(document.getElementById('o-driver-sel').value);
+  if(!cbBusy('o-dept-sel')&&!cbBusy('e-dept'))fillDeptSelects(document.getElementById('o-dept-sel').value);
+  _noAnim=false;
+  flashSync();
+}
+function flashSync(){
+  const t=document.getElementById('syncTag');if(!t)return;
+  t.classList.add('on');clearTimeout(t._t);
+  t._t=setTimeout(()=>t.classList.remove('on'),2600);
+}
+function startLive(){
+  try{
+    sb.channel('ldb-cars-live')
+      .on('postgres_changes',{event:'*',schema:'public',table:'vehicle_mileage'},()=>scheduleSync(400))
+      .on('postgres_changes',{event:'*',schema:'public',table:'drivers'},()=>scheduleSync(400))
+      .on('postgres_changes',{event:'*',schema:'public',table:'departments'},()=>scheduleSync(400))
+      .subscribe();
+  }catch(e){console.warn('realtime:',e);}
+  setInterval(()=>{if(!document.hidden)syncNow();},20000);
+  setInterval(()=>{if(_syncPend&&syncable())syncNow();},2500);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleSync(300);});
+  window.addEventListener('focus',()=>scheduleSync(500));
+  window.addEventListener('online',()=>scheduleSync(300));
+}
 
 document.addEventListener('DOMContentLoaded',async()=>{
   paintIcons();
@@ -1869,7 +1939,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   events();photos();
   await Promise.all([load(),loadDrivers(),loadDepts()]);
   fillDriverSelects();fillDeptSelects();
-  plates();renderAll();
+  plates();renderAll();startLive();
   const wait=Math.max(0,1700-(Date.now()-t0));
   setTimeout(()=>{
     const s=document.getElementById('splash');
@@ -1955,7 +2025,7 @@ function rDash(){
     const o=_c.filter(r=>r.plate===p&&r.status==='out').pop();
     const l=_c.filter(r=>r.plate===p&&r.status==='complete').pop();
     const isO=!!o,km=isO?o.out_km:(l?l.in_km:null);
-    return`<div class="vc ${isO?'out':''} anim" style="animation-delay:${(i+3)*.04}s" data-plate="${p}">
+    return`<div class="vc ${isO?'out':''} ${AN()}" style="animation-delay:${(i+3)*.04}s" data-plate="${p}">
       <div class="vc-top"><div><div class="vc-name">${PNAME[p]||''}</div><div class="vc-plate mono">${p}</div></div><div class="vc-icon">${ico(p)}</div></div>
       <span class="pill ${isO?'out':'in'}"><span class="pdot"></span>${isO?'ອອກຢູ່':'ຢູ່ທີ່'}</span>
       <div class="vc-km">${isO?'ໄມອອກ':'ໄມລ່າສຸດ'} <b class="mono">${fN(km)}</b> km</div>
@@ -1963,7 +2033,7 @@ function rDash(){
   }).join('');
   const rc=[..._c].reverse().slice(0,5);
   document.getElementById('recentList').innerHTML=rc.length?rc.map((r,i)=>`
-    <div class="row anim" style="animation-delay:${(i+5)*.04}s">
+    <div class="row ${AN()}" style="animation-delay:${(i+5)*.04}s">
       <span class="tag mono">${r.plate}</span>
       <div class="row-mid"><div class="row-t">${esc(r.driver)}</div><div class="row-s">${esc(r.dest)}${r.dept?` · ${esc(r.dept)}`:''}</div></div>
       <div class="row-r"><div class="row-v mono">${r.status==='complete'?fN(r.dist)+' km':'—'}</div>
@@ -1982,7 +2052,7 @@ function rHist(){
   const l=document.getElementById('histList');
   if(!r.length){l.innerHTML=`<div class="empty"><div class="empty-ico">${svg('search','ic-xl')}</div>ບໍ່ພົບຂໍ້ມູນ</div>`;document.getElementById('histCount').textContent='';return;}
   l.innerHTML=r.map((x,i)=>`
-    <div class="hi anim" style="animation-delay:${Math.min(i,8)*.035}s">
+    <div class="hi ${AN()}" style="animation-delay:${Math.min(i,8)*.035}s">
       <div class="hi-top"><div class="hi-nm">${PNAME[x.plate]||''} <span class="mono" style="color:var(--txt3)">${x.plate}</span></div>
       <span class="pill ${x.status==='complete'?'in':'out'}"><span class="pdot"></span>${x.status==='complete'?'ກັບແລ້ວ':'ຢູ່ນອກ'}</span></div>
       <div class="hi-mid"><div><div class="hi-d">${esc(x.driver)}</div>
@@ -2018,7 +2088,7 @@ function rSum(){
       <div class="rk-body">
         <div class="rk-name">${ico(p)}${full(p)}</div>
         <div class="rk-sub">${d.trips} ເທື່ອ · ${vtot?Math.round(d.km/vtot*100):0}% ຂອງທັງໝົດ</div>
-        <div class="rk-bar"><div class="rk-fill" style="width:${Math.round(d.km/vmax*100)}%;animation-delay:${i*.08}s"></div></div>
+        <div class="rk-bar"><div class="rk-fill" style="width:${Math.round(d.km/vmax*100)}%;animation-delay:${i*.08}s${_noAnim?';animation:none':''}"></div></div>
       </div>
       <div class="rk-val"><div class="rk-num mono">${fN(d.km)}</div><div class="rk-unit">km</div></div>
     </div>`).join(''):`<div class="empty"><div class="empty-ico">${svg('car','ic-xl')}</div>ຍັງບໍ່ມີຂໍ້ມູນ</div>`;
@@ -2034,7 +2104,7 @@ function rSum(){
       <div class="rk-body">
         <div class="rk-name">${svg('building')}${esc(n)}</div>
         <div class="rk-sub">${fN(d.km)} km · ${dtot?Math.round(d.trips/dtot*100):0}% ຂອງທັງໝົດ</div>
-        <div class="rk-bar"><div class="rk-fill" style="width:${Math.round(d.trips/dmax*100)}%;animation-delay:${i*.08}s"></div></div>
+        <div class="rk-bar"><div class="rk-fill" style="width:${Math.round(d.trips/dmax*100)}%;animation-delay:${i*.08}s${_noAnim?';animation:none':''}"></div></div>
       </div>
       <div class="rk-val"><div class="rk-num mono">${d.trips}</div><div class="rk-unit">ເທື່ອ</div></div>
     </div>`).join(''):`<div class="empty"><div class="empty-ico">${svg('building','ic-xl')}</div>ຍັງບໍ່ມີຂໍ້ມູນ</div>`;
