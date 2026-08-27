@@ -115,6 +115,8 @@ body{
   background:var(--bg2);border:1px solid var(--line);font-size:11.5px;color:var(--txt2);font-weight:600;
 }
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:blink 2.4s ease-in-out infinite;}
+.live-dot.off{background:var(--warn);}
+#btnSync .ic{width:18px;height:18px;}
 .sync-tag{
   display:flex;align-items:center;gap:5px;flex:none;padding:6px 10px;border-radius:8px;
   background:var(--ok-dim);color:var(--ok);font-size:11px;font-weight:700;white-space:nowrap;
@@ -858,7 +860,7 @@ body.loading{overflow:hidden;}
     <div class="sb-i" data-tab="hist" id="n-hist"><span data-ic="list"></span><span class="sb-tx">ປະຫວັດການໃຊ້ລົດ</span></div>
     <div class="sb-i" data-tab="sum" id="n-sum"><span data-ic="chart"></span><span class="sb-tx">ສະຫຼຸບລາຍງານ</span></div>
   </nav>
-  <div class="sb-foot">ລະບົບຕິດຕາມການໃຊ້ລົດ · v2.3</div>
+  <div class="sb-foot">ລະບົບຕິດຕາມການໃຊ້ລົດ · v2.4</div>
 </aside>
 <div class="sb-mask" id="sbMask"></div>
 
@@ -868,7 +870,8 @@ body.loading{overflow:hidden;}
     <button class="burger" id="burger" aria-label="ເມນູ" data-ic="menu"></button>
     <div class="hdr-t" id="pageTitle">ບັນທຶກການໃຊ້ລົດ</div>
     <div class="sync-tag" id="syncTag"><span data-ic="check"></span><span>ອັບເດດແລ້ວ</span></div>
-    <div class="hdr-chip"><span class="live-dot"></span><span id="hdrDate"></span></div>
+    <button class="burger" id="btnSync" title="ດຶງຂໍ້ມູນໃໝ່" data-ic="refresh"></button>
+    <div class="hdr-chip"><span class="live-dot" id="liveDot"></span><span id="hdrDate"></span></div>
     <img class="hdr-logo logo-img" alt="LDB">
   </header>
 
@@ -1201,7 +1204,8 @@ grid:'<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5
 chevL:'<path d="M14.5 5.5 8 12l6.5 6.5"/>',
 chevR:'<path d="M9.5 5.5 16 12l-6.5 6.5"/>',
 'arrow-right':'<path d="M4.5 12h15M13.5 6l6 6-6 6"/>',
-loader:'<path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4M6 6l2.8 2.8M15.2 15.2 18 18M18 6l-2.8 2.8M8.8 15.2 6 18"/>'
+loader:'<path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4M6 6l2.8 2.8M15.2 15.2 18 18M18 6l-2.8 2.8M8.8 15.2 6 18"/>',
+refresh:'<path d="M20.4 12a8.4 8.4 0 1 1-2.5-6"/><path d="M20.4 4.2v5.9h-5.9"/>'
 };
 function svg(n,cls){
   const p=IC[n];if(!p)return'';
@@ -1871,7 +1875,7 @@ async function refresh(){await load();inPlates();renderAll();}
 /* ================= ອັບເດດອັດຕະໂນມັດ (REALTIME + ສຳຮອງດ້ວຍການກວດເປັນໄລຍະ) =================
    ຫຼັກການ: ດຶງຂໍ້ມູນຢູ່ເບື້ອງຫຼັງ → ຖ້າມີການປ່ຽນແປງຈິງຈຶ່ງແຕ້ມໃໝ່
    ແລະ ຈະບໍ່ແຕ້ມໃໝ່ຕອນຜູ້ໃຊ້ກຳລັງເປີດເມນູ / ປະຕິທິນ / ໜ້າຕ່າງ ຫຼື ກຳລັງບັນທຶກ */
-let _syncBusy=false,_syncPend=false,_syncT=null;
+let _syncBusy=false,_syncPend=false,_syncT=null,_rtOK=false,_lastTouch=0;
 function syncable(){
   if(document.getElementById('saving').classList.contains('on'))return false;
   if(document.querySelector('.ov.open'))return false;
@@ -1886,17 +1890,30 @@ function snap(){
   return JSON.stringify(_c.map(r=>[r.id,r.status,r.plate,r.driver,r.dept,r.dest,r.out_dt,r.in_dt,r.out_km,r.in_km,r.dist,r.note,r.in_note,r.out_img_url,r.in_img_url]))
     +'|'+_drv.join('~')+'|'+_dep.join('~');
 }
-function scheduleSync(ms){clearTimeout(_syncT);_syncT=setTimeout(syncNow,ms||700);}
-async function syncNow(){
-  if(_syncBusy)return;
-  if(!syncable()){_syncPend=true;return;}
+function scheduleSync(ms){clearTimeout(_syncT);_syncT=setTimeout(()=>syncNow(),ms||600);}
+async function syncNow(force){
+  if(_syncBusy)return false;
+  if(!force&&!syncable()){_syncPend=true;return false;}
   _syncBusy=true;_syncPend=false;
+  const b=document.getElementById('btnSync');if(b)b.querySelector('svg')?.classList.add('spin');
+  let changed=false;
   try{
     const before=snap();
     await Promise.all([load(true),loadDrivers(),loadDepts()]);
-    if(snap()!==before)applySync();
-  }catch(e){console.error('sync:',e);}
+    changed=snap()!==before;
+    if(changed)applySync();
+    setSyncStamp();
+  }catch(e){console.error('[sync]',e);}
+  if(b)b.querySelector('svg')?.classList.remove('spin');
   _syncBusy=false;
+  return changed;
+}
+function setSyncStamp(){
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  const t=`ດຶງຂໍ້ມູນລ່າສຸດ ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`+(_rtOK?' · Realtime ເປີດ':' · Realtime ປິດ (ກວດທຸກ 10 ວິ)');
+  const c=document.querySelector('.hdr-chip'),b=document.getElementById('btnSync');
+  if(c)c.title=t;
+  if(b)b.title=t;
 }
 function applySync(){
   _noAnim=true;
@@ -1912,19 +1929,39 @@ function flashSync(){
   t.classList.add('on');clearTimeout(t._t);
   t._t=setTimeout(()=>t.classList.remove('on'),2600);
 }
+function touchSync(){
+  const n=Date.now();
+  if(n-_lastTouch<6000)return;
+  _lastTouch=n;scheduleSync(150);
+}
 function startLive(){
   try{
     sb.channel('ldb-cars-live')
-      .on('postgres_changes',{event:'*',schema:'public',table:'vehicle_mileage'},()=>scheduleSync(400))
-      .on('postgres_changes',{event:'*',schema:'public',table:'drivers'},()=>scheduleSync(400))
-      .on('postgres_changes',{event:'*',schema:'public',table:'departments'},()=>scheduleSync(400))
-      .subscribe();
-  }catch(e){console.warn('realtime:',e);}
-  setInterval(()=>{if(!document.hidden)syncNow();},20000);
+      .on('postgres_changes',{event:'*',schema:'public',table:'vehicle_mileage'},()=>{console.log('[rt] vehicle_mileage');scheduleSync(300);})
+      .on('postgres_changes',{event:'*',schema:'public',table:'drivers'},()=>scheduleSync(300))
+      .on('postgres_changes',{event:'*',schema:'public',table:'departments'},()=>scheduleSync(300))
+      .subscribe(st=>{
+        _rtOK=(st==='SUBSCRIBED');
+        console.log('[rt] status:',st);
+        const d=document.getElementById('liveDot');if(d)d.classList.toggle('off',!_rtOK);
+        setSyncStamp();
+      });
+  }catch(e){console.warn('[rt] off:',e);}
+  setInterval(()=>{if(!document.hidden)syncNow();},10000);
   setInterval(()=>{if(_syncPend&&syncable())syncNow();},2500);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleSync(300);});
-  window.addEventListener('focus',()=>scheduleSync(500));
-  window.addEventListener('online',()=>scheduleSync(300));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleSync(200);});
+  window.addEventListener('focus',()=>scheduleSync(300));
+  window.addEventListener('online',()=>scheduleSync(200));
+  document.addEventListener('click',touchSync,true);
+  document.addEventListener('touchstart',touchSync,{capture:true,passive:true});
+  const b=document.getElementById('btnSync');
+  if(b)b.addEventListener('click',async e=>{
+    e.stopPropagation();
+    const ch=await syncNow(true);
+    toast(ch?'ອັບເດດຂໍ້ມູນໃໝ່ແລ້ວ':'ຂໍ້ມູນເປັນລ່າສຸດຢູ່ແລ້ວ','ok');
+  });
+  setSyncStamp();
+  window.syncNow=syncNow;
 }
 
 document.addEventListener('DOMContentLoaded',async()=>{
