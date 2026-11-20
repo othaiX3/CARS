@@ -438,6 +438,7 @@ input:hover,select:hover{border-color:var(--line2)}
       <div class="fg"><label class="req">ທະບຽນລົດ</label><select id="f-plate"></select><div class="hint" id="f-hint"></div></div>
       <div class="row2"><div class="fg"><label class="req">ວັນທີ</label><input type="date" id="f-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="f-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
+      <div class="fg"><label class="req">ຜູ້ໄປຕື່ມ</label><select id="f-drv"></select></div>
       <div class="fg"><label class="req">ປະເພດນ້ຳມັນ</label><div class="chips" id="f-type" style="grid-template-columns:repeat(3,1fr)"></div></div>
       <div class="fg"><label class="req">ເລກໄມຕອນຢູ່ປັ໊ມ</label>
         <div class="numwrap"><input type="text" id="f-odo" inputmode="numeric" placeholder="0"><span class="unit">km</span></div></div>
@@ -469,6 +470,7 @@ input:hover,select:hover{border-color:var(--line2)}
       <div class="row2"><div class="fg"><label class="req">ວັນທີເຂົ້າ</label><input type="date" id="mi-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="mi-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
       <div class="fg"><label class="req">ຈຸດບໍລິການ</label><div class="chips" id="mi-shop" style="grid-template-columns:1fr 1fr"></div></div>
+      <div class="fg"><label class="req">ຜູ້ນຳລົດໄປສ້ອມ</label><select id="mi-drv"></select></div>
       <div class="fg"><label class="req">ເລກໄມຕອນສົ່ງ</label>
         <div class="numwrap"><input type="text" id="mi-odo" inputmode="numeric" placeholder="0"><span class="unit">km</span></div></div>
       <div class="fg"><label>ອາການ / ໝາຍເຫດ</label><input type="text" id="mi-note" placeholder="ເຊັ່ນ ມີສຽງດັງຊ່ວງລ່າງ"></div>
@@ -856,12 +858,12 @@ async function dbLoad(quiet){
     TRIPS=raw.filter(x=>V[x.plate]).map(x=>({id:x.id,p:x.plate,dt:toLocal(x.out_dt),
       drv:x.driver,dep:x.dept,dest:x.dest,o:x.out_km,dtIn:toLocal(x.in_dt),i:x.in_km}));
     FUEL=(fu.data||[]).map(x=>({id:x.id,p:x.plate,dt:toLocal(x.filled_at),ft:x.fuel_type,
-      o:x.odo_km,lit:+x.liters,amt:+x.amount,img:x.img_url}));
+      o:x.odo_km,lit:+x.liters,amt:+x.amount,img:x.img_url,drv:x.driver}));
     const byLog={};(mi.data||[]).forEach(r=>{(byLog[r.log_id]=byLog[r.log_id]||[]).push(r)});
     MAINT=(ml.data||[]).map(x=>{
       const rs=byLog[x.id]||[],costs={};
       rs.forEach(r=>costs[r.item_id]={p:+r.parts_cost||0,l:+r.labor_cost||0});
-      return{id:x.id,p:x.plate,dt:x.date_in,tin:x.time_in,dout:x.date_out,tout:x.time_out,shop:x.shop,
+      return{id:x.id,p:x.plate,dt:x.date_in,tin:x.time_in,dout:x.date_out,tout:x.time_out,shop:x.shop,drv:x.driver,
         oIn:x.odo_in,o:x.odo_out||x.odo_in,items:rs.map(r=>r.item_id),costs,
         pTot:+x.parts_total||0,lTot:+x.labor_total||0,cost:+x.total_cost||0,img:x.img_url,note:x.note,next:{}}});
     if(DIAG.length>=8){
@@ -1009,11 +1011,11 @@ function renderHome(){
       <div class="row-r">${x.i?fN(x.i-x.o)+' km':'—'}
         <small style="color:${x.dtIn?'var(--ok)':'var(--dan)'}">${x.dtIn?'ກັບແລ້ວ':'ຍັງບໍ່ກັບ'}</small></div></div>`;
     if(e.k==='fuel')return `<div class="row hrow" data-k="fuel" data-id="${x.id}"><span class="tag" style="background:${FTYPE[x.ft].c}1a;color:${FTYPE[x.ft].c}">${x.p}</span>
-      <div class="row-m"><div class="row-t">ຕື່ມນ້ຳມັນ ${f1(x.lit)} L</div><div class="row-s">${FTYPE[x.ft].n} · ${fmtD(x.dt)}</div></div>
+      <div class="row-m"><div class="row-t">ຕື່ມນ້ຳມັນ ${f1(x.lit)} L</div><div class="row-s">${FTYPE[x.ft].n} · ${fmtD(x.dt)}${x.drv?' · '+x.drv:''}</div></div>
       <div class="row-r">${fN(x.amt)}<small>ກີບ</small></div></div>`;
     return `<div class="row hrow" data-k="maint" data-id="${x.id}"><span class="tag" style="background:var(--warn-dim);color:var(--warn)">${x.p}</span>
       <div class="row-m"><div class="row-t">${x.dout?'ສ້ອມແປງສຳເລັດ':'ກຳລັງສ້ອມ'}</div>
-      <div class="row-s">${x.items.length?x.items.map(i=>IT[i].n).join(', '):x.note||'ລໍຖ້າກວດ'}</div></div>
+      <div class="row-s">${x.items.length?x.items.map(i=>IT[i]?IT[i].n:i).join(', '):x.note||'ລໍຖ້າກວດ'}${x.drv?' · '+x.drv:''}</div></div>
       <div class="row-r">${x.cost?fN(x.cost):'—'}
         <small style="color:${x.dout?'var(--ok)':'var(--warn)'}">${x.dout?'ສຳເລັດ':'ກຳລັງສ້ອມ'}</small></div></div>`}).join('');
   wireRows('h-recent');
@@ -1126,15 +1128,16 @@ function saveFuel(){
   if(!lit)return toast('ໃສ່ຈຳນວນລິດ','err');
   if(!amt)return toast('ໃສ່ຈຳນວນເງິນ','err');
   if(!okT(getTime($('f-time'))))return toast('ໃສ່ເວລາໃຫ້ຖືກ (ຊມ:ນທ)','err');
+  if(!$('f-drv').value)return toast('ເລືອກຜູ້ໄປຕື່ມ','err');
   const pv=prevFuel(p,o);
   run(async()=>{
     const url=await upImg(FIMG,'fuel');
     const{error}=await sb.from('fuel_logs').insert({id:nid(),plate:p,
       filled_at:l2i($('f-date').value,getTime($('f-time'))),fuel_type:FT,odo_km:o,
-      liters:lit,amount:amt,img_url:url});
+      liters:lit,amount:amt,img_url:url,driver:$('f-drv').value});
     if(error)throw error;clrFuel()},
     pv&&o>pv.o?`ບັນທຶກແລ້ວ · ${f1((o-pv.o)/lit)} km/L`:'ບັນທຶກແລ້ວ')}
-function clrFuel(){['f-odo','f-lit','f-amt'].forEach(i=>$(i).value='');$('f-plate').value='';FT='';FIMG=null;
+function clrFuel(){['f-odo','f-lit','f-amt'].forEach(i=>$(i).value='');$('f-plate').value='';$('f-drv').value='';FT='';FIMG=null;
   $('f-type').querySelectorAll('.ch').forEach(x=>{x.classList.remove('on');x.style.background=''});
   $('f-hint').innerHTML='';$('f-calc').innerHTML='';drawFShot();setNow('f-date','f-time')}
 function renderFuel(){
@@ -1142,7 +1145,7 @@ function renderFuel(){
     const pv=prevFuel(f.p,f.o),kml=pv?(f.o-pv.o)/f.lit:null;
     return `<div class="row hrow" data-k="fuel" data-id="${f.id}">${f.img?`<img class="thumb" src="${f.img}">`:`<span class="tag">${f.p}</span>`}
       <div class="row-m"><div class="row-t">${f.img?f.p+' · ':''}${f1(f.lit)} L · ${FTYPE[f.ft].n}</div>
-        <div class="row-s">${fmtD(f.dt)} · ${fN(f.o)} km${kml?` · ${f1(kml)} km/L`:' · ຈຸດເລີ່ມຕົ້ນ'}</div></div>
+        <div class="row-s">${fmtD(f.dt)} · ${fN(f.o)} km${kml?` · ${f1(kml)} km/L`:' · ຈຸດເລີ່ມຕົ້ນ'}${f.drv?' · '+f.drv:''}</div></div>
       <div class="row-r">${fN(f.amt)}<small>ກີບ</small></div></div>`}).join('')
    ||'<div class="empty">ຍັງບໍ່ມີຂໍ້ມູນ</div>';wireRows('fuel-list')}
 
@@ -1172,9 +1175,11 @@ function initMaint(){
     if(!MSHOP)return toast('ເລືອກຈຸດບໍລິການ','err');
     if(!o)return toast('ໃສ່ເລກໄມ','err');
     if(!okT(getTime($('mi-time'))))return toast('ໃສ່ເວລາໃຫ້ຖືກ (ຊມ:ນທ)','err');
+    if(!$('mi-drv').value)return toast('ເລືອກຜູ້ນຳລົດໄປສ້ອມ','err');
     run(async()=>{
       const{error}=await sb.from('maint_logs').insert({id:nid(),plate:p,date_in:$('mi-date').value,
-        time_in:getTime($('mi-time')),shop:MSHOP,odo_in:o,note:$('mi-note').value.trim()||null});
+        time_in:getTime($('mi-time')),shop:MSHOP,odo_in:o,driver:$('mi-drv').value,
+        note:$('mi-note').value.trim()||null});
       if(error)throw error;clrMi()},full(p)+' ສົ່ງເຂົ້າແປງແລ້ວ')};
   $('mi-clr').onclick=clrMi;
   $('mo-job').onchange=pickJob;
@@ -1185,7 +1190,7 @@ function initMaint(){
   $('d-plate').onchange=renderDue;
   drawMCats();drawMItems();drawMCost();mGrand();drawMShot();fillJobs();
 }
-function clrMi(){$('mi-plate').value='';['mi-odo','mi-note'].forEach(i=>$(i).value='');MSHOP='';
+function clrMi(){$('mi-plate').value='';$('mi-drv').value='';['mi-odo','mi-note'].forEach(i=>$(i).value='');MSHOP='';
   $('mi-shop').querySelectorAll('.ch').forEach(x=>{x.classList.remove('on');x.style.background=''});$('mi-hint').innerHTML='';setNow('mi-date','mi-time')}
 function drawMShot(){const b=$('m-shot');
   if(MIMG){b.classList.add('has');b.innerHTML=`<img src="${MIMG}"><button class="shot-x" data-ic="close"></button>`;
@@ -1353,14 +1358,14 @@ function renderHist(){
     return `<div class="row hrow" data-k="fuel" data-id="${f.id}">
       ${f.img?`<img class="thumb" src="${f.img}">`:`<span class="tag" style="background:${FTYPE[f.ft].c}1a;color:${FTYPE[f.ft].c}">${f.p}</span>`}
       <div class="row-m"><div class="row-t">${f.img?f.p+' · ':''}${f1(f.lit)} L · ${FTYPE[f.ft].n}</div>
-        <div class="row-s">${fmtDT(f.dt)} · ${fN(f.o)} km${kml?` · ${f1(kml)} km/L`:''}</div></div>
+        <div class="row-s">${fmtDT(f.dt)} · ${fN(f.o)} km${kml?` · ${f1(kml)} km/L`:''}${f.drv?' · '+f.drv:''}</div></div>
       <div class="row-r">${fN(f.amt)}<small>ກີບ</small></div></div>`}).join('')
     :'<div class="empty">ບໍ່ພົບຂໍ້ມູນ</div>';
   $('hl-maint').innerHTML=mt.length?mt.map(m=>`
     <div class="row hrow" data-k="maint" data-id="${m.id}">
       ${m.img?`<img class="thumb" src="${m.img}">`:`<span class="tag" style="background:var(--warn-dim);color:var(--warn)">${m.p}</span>`}
       <div class="row-m"><div class="row-t">${m.items.length?m.items.map(i=>IT[i].n).join(', '):(m.note||'ລໍຖ້າກວດສະພາບ')}</div>
-        <div class="row-s">${m.shop} · ${fmtD(m.dt)}${m.dout?` → ${fmtD(m.dout)}`:''}</div></div>
+        <div class="row-s">${m.shop} · ${fmtD(m.dt)}${m.dout?` → ${fmtD(m.dout)}`:''}${m.drv?' · '+m.drv:''}</div></div>
       <div class="row-r">${m.cost?fN(m.cost):'—'}
         <small style="color:${m.dout?'var(--ok)':'var(--warn)'}">${m.dout?'ສຳເລັດ':'ກຳລັງສ້ອມ'}</small></div></div>`).join('')
     :'<div class="empty">ບໍ່ພົບຂໍ້ມູນ</div>';
@@ -1387,7 +1392,8 @@ function openDetail(k,id,ro){
     body=`<div style="font-size:14px;font-weight:700;margin-bottom:12px">${vic(f.p)} ${full(f.p)}</div>
      <div class="dgrid">${cell('ວັນ-ເວລາ',fmtDT(f.dt))}${cell('ປະເພດ',FTYPE[f.ft].n)}
       ${cell('ເລກໄມ',fN(f.o)+' km')}${cell('ຈຳນວນລິດ',f1(f.lit)+' L')}
-      ${cell('ຈຳນວນເງິນ',fN(f.amt)+' ກີບ')}${cell('ລາຄາ/ລິດ',fN(f.amt/f.lit)+' ກີບ')}</div>
+      ${cell('ຈຳນວນເງິນ',fN(f.amt)+' ກີບ')}${cell('ລາຄາ/ລິດ',fN(f.amt/f.lit)+' ກີບ')}
+      ${cell('ຜູ້ໄປຕື່ມ',f.drv||'—')}</div>
      ${pv?`<div class="hsum">${svg('drop')}<span>ແລ່ນມາ <b>${fN(f.o-pv.o)}</b> km · <b>${f1((f.o-pv.o)/f.lit)}</b> km/L · <b>${fN(f.amt/(f.o-pv.o))}</b> ກີບ/km</span></div>`
       :`<div class="hsum">${svg('info')}<span>ເທື່ອທຳອິດ — ຍັງຄຳນວນ km/L ບໍ່ໄດ້</span></div>`}
      ${f.img?`<img src="${f.img}" style="width:100%;border-radius:11px;margin-top:4px;cursor:pointer" onclick="openLB(this.src)">`:''}`}
@@ -1395,7 +1401,8 @@ function openDetail(k,id,ro){
     body=`<div style="font-size:14px;font-weight:700;margin-bottom:12px">${vic(m.p)} ${full(m.p)}</div>
      <div class="dgrid">${cell('ເຂົ້າສ້ອມ',fmtD(m.dt))}${cell('ຮັບຄືນ',m.dout?fmtD(m.dout):'ຍັງບໍ່ຮັບ')}
       ${cell('ຈຸດບໍລິການ',m.shop)}${cell('ໃຊ້ເວລາ',daysBetween(m.dt,m.dout)+' ວັນ')}
-      ${cell('ເລກໄມຕອນສົ່ງ',fN(m.oIn)+' km')}${cell('ເລກໄມຕອນຮັບ',fN(m.o)+' km')}</div>
+      ${cell('ເລກໄມຕອນສົ່ງ',fN(m.oIn)+' km')}${cell('ເລກໄມຕອນຮັບ',fN(m.o)+' km')}
+      ${cell('ຜູ້ນຳໄປສ້ອມ',m.drv||'—')}</div>
      ${m.items.length?`<div style="font-size:11px;font-weight:700;color:var(--txt2);margin:4px 0 8px">ລາຍການ & ມູນຄ່າ</div>
       <div class="ctab">${m.items.map(i=>`<div class="crow"><div class="crow-n">${IT[i].n}</div>
         <span class="mono" style="font-weight:700;font-size:13px">${fN((m.costs[i]||{}).p||0)}</span></div>`).join('')}
@@ -1428,13 +1435,15 @@ function editDetail(){
     b=`<div class="row2"><div class="fg"><label>ວັນທີ</label><input type="date" id="e1" value="${dtp(f.dt)}"></div>
        <div class="fg"><label>ເວລາ</label><input type="time" id="e2" value="${tmp(f.dt)}"></div></div>
       <div class="fg"><label>ປະເພດນ້ຳມັນ</label><select id="e3">${Object.entries(FTYPE).map(([kk,v])=>`<option value="${kk}" ${kk===f.ft?'selected':''}>${v.n}</option>`).join('')}</select></div>
+      <div class="fg"><label>ຜູ້ໄປຕື່ມ</label><select id="e8"><option value="">— ເລືອກ —</option>${DRIVERS.map(d=>`<option ${d===f.drv?'selected':''}>${d}</option>`).join('')}</select></div>
       <div class="fg"><label>ເລກໄມ</label><div class="numwrap"><input type="text" id="e4" inputmode="numeric" value="${gfmt(f.o)}"><span class="unit">km</span></div></div>
       <div class="row2"><div class="fg"><label>ຈຳນວນລິດ</label><div class="numwrap"><input type="number" id="e5" step="0.01" value="${f.lit}"><span class="unit">L</span></div></div>
        <div class="fg"><label>ຈຳນວນເງິນ</label><div class="numwrap"><input type="text" id="e6" inputmode="numeric" value="${gfmt(f.amt)}"><span class="unit">ກີບ</span></div></div></div>`}
   if(k==='maint'){const m=MAINT.find(x=>x.id==id);
     b=`<div class="row2"><div class="fg"><label>ວັນທີເຂົ້າ</label><input type="date" id="e1" value="${m.dt}"></div>
        <div class="fg"><label>ວັນທີຮັບຄືນ</label><input type="date" id="e2" value="${m.dout||''}"></div></div>
-      <div class="fg"><label>ຈຸດບໍລິການ</label><select id="e3">${SHOPS.map(s=>`<option ${s.n===m.shop?'selected':''}>${s.n}</option>`).join('')}</select></div>
+      <div class="row2"><div class="fg"><label>ຈຸດບໍລິການ</label><select id="e3">${SHOPS.map(s=>`<option ${s.n===m.shop?'selected':''}>${s.n}</option>`).join('')}</select></div>
+       <div class="fg"><label>ຜູ້ນຳໄປສ້ອມ</label><select id="e8"><option value="">— ເລືອກ —</option>${DRIVERS.map(d=>`<option ${d===m.drv?'selected':''}>${d}</option>`).join('')}</select></div></div>
       <div class="row2"><div class="fg"><label>ເລກໄມຕອນສົ່ງ</label><div class="numwrap"><input type="text" id="e4" inputmode="numeric" value="${gfmt(m.oIn)}"><span class="unit">km</span></div></div>
        <div class="fg"><label>ເລກໄມຕອນຮັບ</label><div class="numwrap"><input type="text" id="e5" inputmode="numeric" value="${gfmt(m.o)}"><span class="unit">km</span></div></div></div>
       <div class="fg"><label>ມູນຄ່າອາໄຫລ່ · ແຕ່ລະລາຍການ</label>
@@ -1496,7 +1505,7 @@ function saveDetail(){
     if(!o||!lit||!amt)return toast('ໃສ່ຂໍ້ມູນໃຫ້ຄົບ','err');
     return run(async()=>{
       const{error}=await sb.from('fuel_logs').update({filled_at:l2i(g('e1'),g('e2')),
-        fuel_type:g('e3'),odo_km:o,liters:lit,amount:amt}).eq('id',id);
+        fuel_type:g('e3'),odo_km:o,liters:lit,amount:amt,driver:g('e8')||null}).eq('id',id);
       if(error)throw error;closeDet()},'ແກ້ໄຂແລ້ວ')}
   if(k==='maint'){const m=MAINT.find(x=>x.id==id);
     const items=[],costs={};let pT=0;
@@ -1507,7 +1516,7 @@ function saveDetail(){
     if(lT)items.forEach(i=>costs[i].l=pT>0?lT*(costs[i].p/pT):lT/items.length);
     return run(async()=>{
       const{error}=await sb.from('maint_logs').update({date_in:g('e1'),date_out:g('e2')||null,
-        shop:g('e3'),odo_in:unfmt(g('e4')),odo_out:unfmt(g('e5'))||unfmt(g('e4')),
+        shop:g('e3'),driver:g('e8')||null,odo_in:unfmt(g('e4')),odo_out:unfmt(g('e5'))||unfmt(g('e4')),
         parts_total:Math.round(pT),labor_total:Math.round(lT),total_cost:Math.round(pT+lT),
         note:g('e7').trim()||null}).eq('id',id);
       if(error)throw error;
@@ -1626,6 +1635,7 @@ function refreshSelects(){
     if(list.includes(c))e.value=c};
   opt('to-plate',PLATES,'— ເລືອກລົດ —');opt('f-plate',PLATES,'— ເລືອກລົດ —');opt('mi-plate',PLATES,'— ເລືອກລົດ —');
   opt('to-drv',DRIVERS,'— ເລືອກ —');opt('to-dep',DEPTS,'— ເລືອກ —');
+  opt('f-drv',DRIVERS,'— ເລືອກ —');opt('mi-drv',DRIVERS,'— ເລືອກ —');
   const hp=$('hf-plate');if(hp){const c=hp.value;
     hp.innerHTML='<option value="">ລົດທັງໝົດ</option>'+PLATES.map(x=>`<option>${x}</option>`).join('');hp.value=c}
 }
