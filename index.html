@@ -539,10 +539,13 @@ input:hover,select:hover{border-color:var(--line2)}
 
   <!-- ============ ລາຍງານ ============ -->
   <div class="page" id="p-rep">
-    <div class="psub">ສະຫຼຸບຄ່າໃຊ້ຈ່າຍລາຍເດືອນ ສຳລັບລາຍງານ</div>
-    <div class="card"><div class="card-b" style="padding:14px 16px"><label>ເລືອກເດືອນ</label><select id="r-month"></select></div></div>
+    <div class="psub">ສະຫຼຸບຄ່າໃຊ້ຈ່າຍ ແລະ ໄລຍະທາງ ຕາມຊ່ວງວັນທີ</div>
+    <div class="card"><div class="card-b" style="padding:14px 16px">
+      <div class="row2"><div class="fg" style="margin:0"><label>ຈາກວັນທີ</label><input type="date" id="r-from"></div>
+        <div class="fg" style="margin:0"><label>ຫາວັນທີ</label><input type="date" id="r-to"></div></div>
+    </div></div>
     <div class="stats" style="grid-template-columns:repeat(3,1fr)" id="r-stats"></div>
-    <div class="card"><div class="card-h"><span data-ic="chart"></span>ຄ່າໃຊ້ຈ່າຍແຍກລາຍຄັນ</div>
+    <div class="card"><div class="card-h"><span data-ic="chart"></span>ສະຫຼຸບແຍກລາຍຄັນ</div>
       <div style="overflow-x:auto"><table class="rtab" id="r-tab"></table></div></div>
     <button class="btn pri" id="r-copy"><span data-ic="copy"></span>ສຳເນົາບົດລາຍງານໃຫ້ຫົວໜ້າ</button>
   </div>
@@ -1584,43 +1587,64 @@ function renderSet(){
 const mKey=s=>String(s).slice(0,7);
 const LM=['ມັງກອນ','ກຸມພາ','ມີນາ','ເມສາ','ພຶດສະພາ','ມິຖຸນາ','ກໍລະກົດ','ສິງຫາ','ກັນຍາ','ຕຸລາ','ພະຈິກ','ທັນວາ'];
 const mName=k=>LM[+k.slice(5,7)-1]+' '+k.slice(0,4);
-function months(){
-  const s=new Set([...FUEL.map(f=>mKey(f.dt)),...MAINT.filter(m=>m.dout).map(m=>mKey(m.dout)),...TRIPS.map(t=>mKey(t.dt))]);
-  const n=new Date();s.add(`${n.getFullYear()}-${pad(n.getMonth()+1)}`);
-  return [...s].sort().reverse()}
-function repData(k){
+const inR=(d,f,t)=>{const s=String(d).slice(0,10);return (!f||s>=f)&&(!t||s<=t)};
+function repData(f,t){
   const by={};PLATES.forEach(p=>by[p]={fuel:0,lit:0,maint:0,parts:0,lab:0,km:0,trips:0});
-  FUEL.filter(f=>mKey(f.dt)===k).forEach(f=>{by[f.p].fuel+=f.amt;by[f.p].lit+=f.lit});
-  MAINT.filter(m=>m.dout&&mKey(m.dout)===k).forEach(m=>{by[m.p].maint+=m.cost;by[m.p].parts+=m.pTot||0;by[m.p].lab+=m.lTot||0});
-  TRIPS.filter(t=>t.i&&mKey(t.dt)===k).forEach(t=>{by[t.p].km+=t.i-t.o;by[t.p].trips++});
+  FUEL.filter(x=>inR(x.dt,f,t)).forEach(x=>{by[x.p]&&(by[x.p].fuel+=x.amt,by[x.p].lit+=x.lit)});
+  MAINT.filter(x=>x.dout&&inR(x.dout,f,t)).forEach(x=>{if(!by[x.p])return;
+    by[x.p].maint+=x.cost;by[x.p].parts+=x.pTot||0;by[x.p].lab+=x.lTot||0});
+  TRIPS.filter(x=>x.i&&inR(x.dt,f,t)).forEach(x=>{by[x.p]&&(by[x.p].km+=x.i-x.o,by[x.p].trips++)});
   const tot={fuel:0,lit:0,maint:0,parts:0,lab:0,km:0,trips:0};
   Object.values(by).forEach(v=>Object.keys(tot).forEach(x=>tot[x]+=v[x]));
   return{by,tot}}
+function qRange(k){
+  const d=new Date(),y=d.getFullYear(),m=d.getMonth();
+  if(k==='m') return[isoD(new Date(y,m,1)),isoD(new Date(y,m+1,0))];
+  if(k==='lm')return[isoD(new Date(y,m-1,1)),isoD(new Date(y,m,0))];
+  if(k==='q') return[isoD(new Date(y,m-2,1)),isoD(new Date(y,m+1,0))];
+  if(k==='y') return[y+'-01-01',y+'-12-31'];
+  return['',''];
+}
+function rngLabel(f,t){
+  if(!f&&!t)return'ທັງໝົດ';
+  if(f&&t)return `${fmtD(f)} – ${fmtD(t)}`;
+  return f?`ຕັ້ງແຕ່ ${fmtD(f)}`:`ຮອດ ${fmtD(t)}`;
+}
 function renderRep(){
-  const sel=$('r-month'),ks=months();
-  if(sel.dataset.k!==ks.join()){const c=sel.value;sel.innerHTML=ks.map(k=>`<option value="${k}">${mName(k)}</option>`).join('');
-    sel.value=ks.includes(c)?c:ks[0];sel.dataset.k=ks.join();sel.onchange=renderRep}
-  const K=sel.value,{by,tot}=repData(K),all=tot.fuel+tot.maint;
+  const fr=$('r-from'),to=$('r-to');
+  if(!fr.dataset.w){fr.dataset.w='1';
+    const[a,b]=qRange('m');fr.value=a;to.value=b;
+    fr.onchange=to.onchange=renderRep;
+  }
+  const F=fr.value,T=to.value;
+  if(F&&T&&F>T){toast('ວັນທີເລີ່ມຕ້ອງກ່ອນວັນທີສິ້ນສຸດ','err');return}
+  const{by,tot}=repData(F,T),all=tot.fuel+tot.maint;
   $('r-stats').innerHTML=`
    <div class="stat b"><div class="stat-i">${svg('wallet')}</div><div class="stat-l">ລວມທັງໝົດ</div><div class="stat-v">${fN(all)}</div><div class="stat-u">ກີບ</div></div>
-   <div class="stat g"><div class="stat-i">${svg('fuel')}</div><div class="stat-l">ຄ່ານ້ຳມັນ</div><div class="stat-v">${fN(tot.fuel)}</div><div class="stat-u">ກີບ</div></div>
-   <div class="stat w"><div class="stat-i">${svg('wrench')}</div><div class="stat-l">ຄ່າສ້ອມແປງ</div><div class="stat-v">${fN(tot.maint)}</div><div class="stat-u">ກີບ</div></div>`;
-  const rows=PLATES.map(p=>[p,by[p]]).sort((a,b)=>(b[1].fuel+b[1].maint)-(a[1].fuel+a[1].maint));
-  $('r-tab').innerHTML=`<thead><tr><th>ລົດ</th><th>ນ້ຳມັນ</th><th>ສ້ອມແປງ</th><th>ລວມ</th></tr></thead>
+   <div class="stat g"><div class="stat-i">${svg('fuel')}</div><div class="stat-l">ຄ່ານ້ຳມັນ</div><div class="stat-v">${fN(tot.fuel)}</div><div class="stat-u">ກີບ · ${fN(tot.lit)} ລິດ</div></div>
+   <div class="stat w"><div class="stat-i">${svg('wrench')}</div><div class="stat-l">ຄ່າສ້ອມແປງ</div><div class="stat-v">${fN(tot.maint)}</div><div class="stat-u">ກີບ</div></div>
+   <div class="stat"><div class="stat-i" style="background:var(--info-dim);color:var(--info)">${svg('road')}</div>
+     <div class="stat-l">ໄລຍະທາງລວມ</div><div class="stat-v" style="color:var(--info)">${fN(tot.km)}</div><div class="stat-u">km · ${tot.trips} ເທື່ອ</div></div>`;
+  const rows=PLATES.map(p=>[p,by[p]]).sort((a,b)=>(b[1].km+b[1].fuel+b[1].maint)-(a[1].km+a[1].fuel+a[1].maint));
+  $('r-tab').innerHTML=`<thead><tr><th>ລົດ</th><th>ເທື່ອ</th><th>ໄລຍະ (km)</th><th>ນ້ຳມັນ</th><th>ສ້ອມແປງ</th><th>ລວມ</th></tr></thead>
     <tbody>${rows.map(([p,v])=>{const t=v.fuel+v.maint;
-      return `<tr><td>${vic(p)}${full(p)}</td><td>${v.fuel?fN(v.fuel):'—'}</td><td>${v.maint?fN(v.maint):'—'}</td>
+      return `<tr><td>${vic(p)}${full(p)}</td><td>${v.trips||'—'}</td>
+        <td style="color:var(--info)">${v.km?fN(v.km):'—'}</td>
+        <td>${v.fuel?fN(v.fuel):'—'}</td><td>${v.maint?fN(v.maint):'—'}</td>
         <td class="t">${t?fN(t):'—'}</td></tr>`}).join('')}
-      <tr class="tot"><td>ລວມ</td><td>${fN(tot.fuel)}</td><td>${fN(tot.maint)}</td><td>${fN(all)}</td></tr></tbody>`;
-  $('r-copy').onclick=()=>copyRep(K,by,tot);
+      <tr class="tot"><td>ລວມ</td><td>${tot.trips}</td><td>${fN(tot.km)}</td>
+        <td>${fN(tot.fuel)}</td><td>${fN(tot.maint)}</td><td>${fN(all)}</td></tr></tbody>`;
+  $('r-copy').onclick=()=>copyRep(F,T,by,tot);
 }
-function copyRep(K,by,tot){
+function copyRep(F,T,by,tot){
   const all=tot.fuel+tot.maint;
-  let t=`ລາຍງານຄ່າໃຊ້ຈ່າຍລົດ · ${mName(K)}\nສາຂາພາກ ໂພນສະຫວັນ\n`;
-  t+=`--------------------------------\nລວມທັງໝົດ: ${fN(all)} ກີບ\n· ນ້ຳມັນ ${fN(tot.fuel)} ກີບ\n· ສ້ອມແປງ ${fN(tot.maint)} ກີບ\n`;
+  let t=`ລາຍງານການນຳໃຊ້ລົດ · ${rngLabel(F,T)}\nສາຂາພາກ ໂພນສະຫວັນ\n`;
+  t+=`--------------------------------\nໄລຍະທາງລວມ: ${fN(tot.km)} km (${tot.trips} ເທື່ອ)\n`;
+  t+=`ຄ່າໃຊ້ຈ່າຍລວມ: ${fN(all)} ກີບ\n· ນ້ຳມັນ ${fN(tot.fuel)} ກີບ (${fN(tot.lit)} ລິດ)\n· ສ້ອມແປງ ${fN(tot.maint)} ກີບ\n`;
   t+=`--------------------------------\nແຍກລາຍຄັນ:\n`;
-  PLATES.map(p=>[p,by[p]]).sort((a,b)=>(b[1].fuel+b[1].maint)-(a[1].fuel+a[1].maint)).forEach(([p,v],i)=>{
-    const s=v.fuel+v.maint;if(!s)return;
-    t+=`${i+1}. ${full(p)} — ${fN(s)} ກີບ (ນ້ຳມັນ ${fN(v.fuel)} · ສ້ອມແປງ ${fN(v.maint)})\n`});
+  PLATES.map(p=>[p,by[p]]).sort((a,b)=>(b[1].km+b[1].fuel+b[1].maint)-(a[1].km+a[1].fuel+a[1].maint)).forEach(([p,v],i)=>{
+    const s=v.fuel+v.maint;if(!s&&!v.km)return;
+    t+=`${i+1}. ${full(p)} — ${fN(v.km)} km · ${fN(s)} ກີບ (ນ້ຳມັນ ${fN(v.fuel)} · ສ້ອມແປງ ${fN(v.maint)})\n`});
   const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();
   try{document.execCommand('copy');toast('ສຳເນົາບົດລາຍງານແລ້ວ','ok')}catch(e){toast('ສຳເນົາບໍ່ໄດ້','err')}
   ta.remove()}
