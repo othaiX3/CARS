@@ -411,7 +411,8 @@ input:hover,select:hover{border-color:var(--line2)}
       <div class="row2"><div class="fg"><label class="req">ວັນທີ</label><input type="date" id="to-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="to-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
       <div class="hint" style="margin:-6px 0 14px"><span data-ic="info"></span><span>ວັນທີ/ເວລາຈະຍ່າງຕາມເວລາຈິງ (ຂີດຂຽວຢູ່ຊ້າຍ) ຈົນກວ່າຈະພິມແກ້ເອງ · ພິມ <b>0830</b> → 08:30 AM · ພິມ <b>1430</b> ຫຼື <b>230pm</b> → 02:30 PM</span></div>
-      <div class="row2"><div class="fg"><label class="req">ຄົນຂັບ</label><select id="to-drv"></select></div>
+      <div class="row2"><div class="fg"><label class="req">ຄົນຂັບ</label>
+          <input type="text" id="to-drv" list="dl-drv" placeholder="ພິມຊື່ເພື່ອຄົ້ນຫາ..." autocomplete="off"></div>
         <div class="fg"><label class="req">ຂະແໜງ</label><select id="to-dep"></select></div></div>
       <div class="fg"><label class="req">ຈຸດໝາຍ</label><input type="text" id="to-dest" placeholder="ລະບຸສະຖານທີ່..."></div>
       <div class="fg"><label class="req">ເລກໄມຕອນອອກ</label>
@@ -438,7 +439,8 @@ input:hover,select:hover{border-color:var(--line2)}
       <div class="fg"><label class="req">ທະບຽນລົດ</label><select id="f-plate"></select><div class="hint" id="f-hint"></div></div>
       <div class="row2"><div class="fg"><label class="req">ວັນທີ</label><input type="date" id="f-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="f-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
-      <div class="fg"><label class="req">ຜູ້ໄປຕື່ມ</label><select id="f-drv"></select></div>
+      <div class="fg"><label class="req">ຜູ້ໄປຕື່ມ</label>
+        <input type="text" id="f-drv" list="dl-drv" placeholder="ພິມຊື່ເພື່ອຄົ້ນຫາ..." autocomplete="off"></div>
       <div class="fg"><label class="req">ປະເພດນ້ຳມັນ</label><div class="chips" id="f-type" style="grid-template-columns:repeat(3,1fr)"></div></div>
       <div class="fg"><label class="req">ເລກໄມຕອນຢູ່ປັ໊ມ</label>
         <div class="numwrap"><input type="text" id="f-odo" inputmode="numeric" placeholder="0"><span class="unit">km</span></div></div>
@@ -470,7 +472,8 @@ input:hover,select:hover{border-color:var(--line2)}
       <div class="row2"><div class="fg"><label class="req">ວັນທີເຂົ້າ</label><input type="date" id="mi-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="mi-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
       <div class="fg"><label class="req">ຈຸດບໍລິການ</label><div class="chips" id="mi-shop" style="grid-template-columns:1fr 1fr"></div></div>
-      <div class="fg"><label class="req">ຜູ້ນຳລົດໄປສ້ອມ</label><select id="mi-drv"></select></div>
+      <div class="fg"><label class="req">ຜູ້ນຳລົດໄປສ້ອມ</label>
+        <input type="text" id="mi-drv" list="dl-drv" placeholder="ພິມຊື່ເພື່ອຄົ້ນຫາ..." autocomplete="off"></div>
       <div class="fg"><label class="req">ເລກໄມຕອນສົ່ງ</label>
         <div class="numwrap"><input type="text" id="mi-odo" inputmode="numeric" placeholder="0"><span class="unit">km</span></div></div>
       <div class="fg"><label>ອາການ / ໝາຍເຫດ</label><input type="text" id="mi-note" placeholder="ເຊັ່ນ ມີສຽງດັງຊ່ວງລ່າງ"></div>
@@ -547,6 +550,8 @@ input:hover,select:hover{border-color:var(--line2)}
     <div class="stats" style="grid-template-columns:repeat(3,1fr)" id="r-stats"></div>
     <div class="card"><div class="card-h"><span data-ic="chart"></span>ສະຫຼຸບແຍກລາຍຄັນ</div>
       <div style="overflow-x:auto"><table class="rtab" id="r-tab"></table></div></div>
+    <div class="card"><div class="card-h"><span data-ic="building"></span>ການນຳໃຊ້ແຍກຕາມຂະແໜງ</div>
+      <div style="overflow-x:auto"><table class="rtab" id="r-dep"></table></div></div>
     <button class="btn pri" id="r-copy"><span data-ic="copy"></span>ສຳເນົາບົດລາຍງານໃຫ້ຫົວໜ້າ</button>
   </div>
 
@@ -564,6 +569,7 @@ input:hover,select:hover{border-color:var(--line2)}
     <button class="btn ghost" id="ed-cancel">ຍົກເລີກ</button>
     <button class="btn ok" id="ed-save">ບັນທຶກ</button></div>
 </div></div>
+<datalist id="dl-drv"></datalist>
 <div class="lb" id="lb"><img id="lb-img" alt=""></div>
 <div class="toast" id="toast"></div>
 
@@ -705,6 +711,16 @@ const fmtDT=s=>{if(!s)return'—';const d=new Date(s);return `${fmtD(s)} ${pad(d
 const addMo=(s,m)=>{const d=new Date(s);d.setMonth(d.getMonth()+m);return d};
 const daysTo=d=>Math.round((new Date(d)-new Date())/864e5);
 const daysBetween=(a,b)=>Math.max(0,Math.round((new Date(b||new Date())-new Date(a))/864e5));
+const normName=s=>String(s||'').replace(/\s+/g,'').normalize('NFC');
+function pickDrv(id){
+  const v=String($(id).value||'').trim();
+  if(!v)return'';
+  const hit=DRIVERS.find(d=>normName(d)===normName(v))
+         || DRIVERS.filter(d=>normName(d).includes(normName(v)));
+  if(typeof hit==='string'){$(id).value=hit;return hit}
+  if(hit.length===1){$(id).value=hit[0];return hit[0]}
+  return null;
+}
 const unfmt=v=>+String(v??'').replace(/[^\d]/g,'')||0;
 const gfmt=v=>{const n=unfmt(v);return n?n.toLocaleString('en-US'):''};
 function money(el,cb){el.addEventListener('input',()=>{el.value=gfmt(el.value);if(cb)cb()})}
@@ -1041,12 +1057,14 @@ function initTrip(){
     if(!p)return toast('ເລືອກລົດ','err');
     if(status(p)!=='free')return toast(`ລົດ${ST[status(p)].t}ຢູ່`,'err');
     if(!okT(getTime($('to-time'))))return toast('ໃສ່ເວລາໃຫ້ຖືກ (ຊມ:ນທ)','err');
-    if(!$('to-drv').value||!$('to-dep').value)return toast('ເລືອກຄົນຂັບ / ຂະແໜງ','err');
+    const drv=pickDrv('to-drv');
+    if(!drv)return toast(drv===null?'ບໍ່ພົບຊື່ນີ້ ຫຼື ກົງຫຼາຍຄົນ — ພິມໃຫ້ຄົບກວ່ານີ້':'ໃສ່ຊື່ຄົນຂັບ','err');
+    if(!$('to-dep').value)return toast('ເລືອກຂະແໜງ','err');
     if(!$('to-dest').value.trim())return toast('ໃສ່ຈຸດໝາຍ','err');
     if(!o)return toast('ໃສ່ເລກໄມ','err');
     run(async()=>{
       const{error}=await sb.from('vehicle_mileage').insert({id:String(nid()),plate:p,
-        out_dt:l2i($('to-date').value,getTime($('to-time'))),driver:$('to-drv').value,
+        out_dt:l2i($('to-date').value,getTime($('to-time'))),driver:drv,
         dept:$('to-dep').value,dest:$('to-dest').value.trim(),out_km:o,status:'out'});
       if(error)throw error;clrTo()},full(p)+' ອອກເດີນທາງແລ້ວ')};
   $('to-clr').onclick=clrTo;
@@ -1066,7 +1084,7 @@ function initTrip(){
   $('ti-clr').onclick=()=>{$('ti-odo').value='';$('ti-calc').innerHTML=''};
   fillTripIn();
 }
-function clrTo(){['to-dest','to-odo'].forEach(i=>$(i).value='');['to-plate','to-drv','to-dep'].forEach(i=>$(i).value='');$('to-hint').innerHTML='';setNow('to-date','to-time')}
+function clrTo(){['to-dest','to-odo','to-drv'].forEach(i=>$(i).value='');['to-plate','to-dep'].forEach(i=>$(i).value='');$('to-hint').innerHTML='';setNow('to-date','to-time')}
 function fillTripIn(){
   const op=TRIPS.filter(t=>!t.dtIn);
   $('ti-trip').innerHTML='<option value="">— ເລືອກ —</option>'+op.map(t=>`<option value="${t.id}">${full(t.p)} · ${t.dest}</option>`).join('');
@@ -1131,13 +1149,14 @@ function saveFuel(){
   if(!lit)return toast('ໃສ່ຈຳນວນລິດ','err');
   if(!amt)return toast('ໃສ່ຈຳນວນເງິນ','err');
   if(!okT(getTime($('f-time'))))return toast('ໃສ່ເວລາໃຫ້ຖືກ (ຊມ:ນທ)','err');
-  if(!$('f-drv').value)return toast('ເລືອກຜູ້ໄປຕື່ມ','err');
+  const fdrv=pickDrv('f-drv');
+  if(!fdrv)return toast(fdrv===null?'ບໍ່ພົບຊື່ນີ້ ຫຼື ກົງຫຼາຍຄົນ — ພິມໃຫ້ຄົບກວ່ານີ້':'ໃສ່ຊື່ຜູ້ໄປຕື່ມ','err');
   const pv=prevFuel(p,o);
   run(async()=>{
     const url=await upImg(FIMG,'fuel');
     const{error}=await sb.from('fuel_logs').insert({id:nid(),plate:p,
       filled_at:l2i($('f-date').value,getTime($('f-time'))),fuel_type:FT,odo_km:o,
-      liters:lit,amount:amt,img_url:url,driver:$('f-drv').value});
+      liters:lit,amount:amt,img_url:url,driver:fdrv});
     if(error)throw error;clrFuel()},
     pv&&o>pv.o?`ບັນທຶກແລ້ວ · ${f1((o-pv.o)/lit)} km/L`:'ບັນທຶກແລ້ວ')}
 function clrFuel(){['f-odo','f-lit','f-amt'].forEach(i=>$(i).value='');$('f-plate').value='';$('f-drv').value='';FT='';FIMG=null;
@@ -1178,10 +1197,11 @@ function initMaint(){
     if(!MSHOP)return toast('ເລືອກຈຸດບໍລິການ','err');
     if(!o)return toast('ໃສ່ເລກໄມ','err');
     if(!okT(getTime($('mi-time'))))return toast('ໃສ່ເວລາໃຫ້ຖືກ (ຊມ:ນທ)','err');
-    if(!$('mi-drv').value)return toast('ເລືອກຜູ້ນຳລົດໄປສ້ອມ','err');
+    const mdrv=pickDrv('mi-drv');
+    if(!mdrv)return toast(mdrv===null?'ບໍ່ພົບຊື່ນີ້ ຫຼື ກົງຫຼາຍຄົນ — ພິມໃຫ້ຄົບກວ່ານີ້':'ໃສ່ຊື່ຜູ້ນຳລົດໄປສ້ອມ','err');
     run(async()=>{
       const{error}=await sb.from('maint_logs').insert({id:nid(),plate:p,date_in:$('mi-date').value,
-        time_in:getTime($('mi-time')),shop:MSHOP,odo_in:o,driver:$('mi-drv').value,
+        time_in:getTime($('mi-time')),shop:MSHOP,odo_in:o,driver:mdrv,
         note:$('mi-note').value.trim()||null});
       if(error)throw error;clrMi()},full(p)+' ສົ່ງເຂົ້າແປງແລ້ວ')};
   $('mi-clr').onclick=clrMi;
@@ -1429,7 +1449,7 @@ function editDetail(){
        <div class="fg"><label>ເວລາ</label><input type="time" id="e2" value="${tmp(t.dt)}"></div></div>
       <div class="row2"><div class="fg"><label>ວັນທີກັບ</label><input type="date" id="e3" value="${dtp(t.dtIn)}"></div>
        <div class="fg"><label>ເວລາ</label><input type="time" id="e4" value="${tmp(t.dtIn)}"></div></div>
-      <div class="row2"><div class="fg"><label>ຄົນຂັບ</label><select id="e5">${DRIVERS.map(d=>`<option ${d===t.drv?'selected':''}>${d}</option>`).join('')}</select></div>
+      <div class="row2"><div class="fg"><label>ຄົນຂັບ</label><input type="text" id="e5" list="dl-drv" value="${(t.drv||'').replace(/"/g,'&quot;')}" placeholder="ພິມຊື່..." autocomplete="off"></div>
        <div class="fg"><label>ຂະແໜງ</label><select id="e6">${DEPTS.map(d=>`<option ${d===t.dep?'selected':''}>${d}</option>`).join('')}</select></div></div>
       <div class="fg"><label>ຈຸດໝາຍ</label><input type="text" id="e7" value="${t.dest.replace(/"/g,'&quot;')}"></div>
       <div class="row2"><div class="fg"><label>ເລກໄມອອກ</label><div class="numwrap"><input type="text" id="e8" inputmode="numeric" value="${gfmt(t.o)}"><span class="unit">km</span></div></div>
@@ -1438,7 +1458,7 @@ function editDetail(){
     b=`<div class="row2"><div class="fg"><label>ວັນທີ</label><input type="date" id="e1" value="${dtp(f.dt)}"></div>
        <div class="fg"><label>ເວລາ</label><input type="time" id="e2" value="${tmp(f.dt)}"></div></div>
       <div class="fg"><label>ປະເພດນ້ຳມັນ</label><select id="e3">${Object.entries(FTYPE).map(([kk,v])=>`<option value="${kk}" ${kk===f.ft?'selected':''}>${v.n}</option>`).join('')}</select></div>
-      <div class="fg"><label>ຜູ້ໄປຕື່ມ</label><select id="e8"><option value="">— ເລືອກ —</option>${DRIVERS.map(d=>`<option ${d===f.drv?'selected':''}>${d}</option>`).join('')}</select></div>
+      <div class="fg"><label>ຜູ້ໄປຕື່ມ</label><input type="text" id="e8" list="dl-drv" value="${(f.drv||'').replace(/"/g,'&quot;')}" placeholder="ພິມຊື່..." autocomplete="off"></div>
       <div class="fg"><label>ເລກໄມ</label><div class="numwrap"><input type="text" id="e4" inputmode="numeric" value="${gfmt(f.o)}"><span class="unit">km</span></div></div>
       <div class="row2"><div class="fg"><label>ຈຳນວນລິດ</label><div class="numwrap"><input type="number" id="e5" step="0.01" value="${f.lit}"><span class="unit">L</span></div></div>
        <div class="fg"><label>ຈຳນວນເງິນ</label><div class="numwrap"><input type="text" id="e6" inputmode="numeric" value="${gfmt(f.amt)}"><span class="unit">ກີບ</span></div></div></div>`}
@@ -1446,7 +1466,7 @@ function editDetail(){
     b=`<div class="row2"><div class="fg"><label>ວັນທີເຂົ້າ</label><input type="date" id="e1" value="${m.dt}"></div>
        <div class="fg"><label>ວັນທີຮັບຄືນ</label><input type="date" id="e2" value="${m.dout||''}"></div></div>
       <div class="row2"><div class="fg"><label>ຈຸດບໍລິການ</label><select id="e3">${SHOPS.map(s=>`<option ${s.n===m.shop?'selected':''}>${s.n}</option>`).join('')}</select></div>
-       <div class="fg"><label>ຜູ້ນຳໄປສ້ອມ</label><select id="e8"><option value="">— ເລືອກ —</option>${DRIVERS.map(d=>`<option ${d===m.drv?'selected':''}>${d}</option>`).join('')}</select></div></div>
+       <div class="fg"><label>ຜູ້ນຳໄປສ້ອມ</label><input type="text" id="e8" list="dl-drv" value="${(m.drv||'').replace(/"/g,'&quot;')}" placeholder="ພິມຊື່..." autocomplete="off"></div></div>
       <div class="row2"><div class="fg"><label>ເລກໄມຕອນສົ່ງ</label><div class="numwrap"><input type="text" id="e4" inputmode="numeric" value="${gfmt(m.oIn)}"><span class="unit">km</span></div></div>
        <div class="fg"><label>ເລກໄມຕອນຮັບ</label><div class="numwrap"><input type="text" id="e5" inputmode="numeric" value="${gfmt(m.o)}"><span class="unit">km</span></div></div></div>
       <div class="fg"><label>ມູນຄ່າອາໄຫລ່ · ແຕ່ລະລາຍການ</label>
@@ -1634,9 +1654,27 @@ function renderRep(){
         <td class="t">${t?fN(t):'—'}</td></tr>`}).join('')}
       <tr class="tot"><td>ລວມ</td><td>${tot.trips}</td><td>${fN(tot.km)}</td>
         <td>${fN(tot.fuel)}</td><td>${fN(tot.maint)}</td><td>${fN(all)}</td></tr></tbody>`;
-  $('r-copy').onclick=()=>copyRep(F,T,by,tot);
+  // ===== ແຍກຕາມຂະແໜງ =====
+  const dep={};
+  TRIPS.filter(x=>x.i&&inR(x.dt,F,T)).forEach(x=>{
+    const k=x.dep||'ບໍ່ໄດ້ລະບຸ';dep[k]=dep[k]||{n:0,km:0};
+    dep[k].n++;dep[k].km+=x.i-x.o});
+  const dr=Object.entries(dep).sort((a,b)=>b[1].km-a[1].km);
+  const dkm=dr.reduce((s,x)=>s+x[1].km,0)||1;
+  const costPerKm=tot.km?(tot.fuel+tot.maint)/tot.km:0;
+  $('r-dep').innerHTML=dr.length?
+   `<thead><tr><th>ຂະແໜງ / ໜ່ວຍບໍລິການ</th><th>ເທື່ອ</th><th>ໄລຍະ (km)</th><th>ສັດສ່ວນ</th><th>ຄ່າໃຊ້ຈ່າຍ (ປະມານ)</th></tr></thead>
+    <tbody>${dr.map(([k,v])=>`<tr>
+      <td style="font-family:var(--font)">${k}</td><td>${v.n}</td>
+      <td style="color:var(--info)">${fN(v.km)}</td>
+      <td>${(v.km/dkm*100).toFixed(1)}%</td>
+      <td class="t">${fN(v.km*costPerKm)}</td></tr>`).join('')}
+     <tr class="tot"><td>ລວມ</td><td>${tot.trips}</td><td>${fN(tot.km)}</td><td>100%</td>
+       <td>${fN(tot.fuel+tot.maint)}</td></tr></tbody>`
+   :'<tbody><tr><td style="color:var(--txt3);text-align:center;padding:24px">ບໍ່ມີການໃຊ້ລົດໃນຊ່ວງນີ້</td></tr></tbody>';
+  $('r-copy').onclick=()=>copyRep(F,T,by,tot,dr,dkm,costPerKm);
 }
-function copyRep(F,T,by,tot){
+function copyRep(F,T,by,tot,dr,dkm,cpk){
   const all=tot.fuel+tot.maint;
   let t=`ລາຍງານການນຳໃຊ້ລົດ · ${rngLabel(F,T)}\nສາຂາພາກ ໂພນສະຫວັນ\n`;
   t+=`--------------------------------\nໄລຍະທາງລວມ: ${fN(tot.km)} km (${tot.trips} ເທື່ອ)\n`;
@@ -1645,6 +1683,9 @@ function copyRep(F,T,by,tot){
   PLATES.map(p=>[p,by[p]]).sort((a,b)=>(b[1].km+b[1].fuel+b[1].maint)-(a[1].km+a[1].fuel+a[1].maint)).forEach(([p,v],i)=>{
     const s=v.fuel+v.maint;if(!s&&!v.km)return;
     t+=`${i+1}. ${full(p)} — ${fN(v.km)} km · ${fN(s)} ກີບ (ນ້ຳມັນ ${fN(v.fuel)} · ສ້ອມແປງ ${fN(v.maint)})\n`});
+  if(dr&&dr.length){
+    t+=`--------------------------------\nແຍກຕາມຂະແໜງ:\n`;
+    dr.forEach(([k,v],i)=>{t+=`${i+1}. ${k} — ${v.n} ເທື່ອ · ${fN(v.km)} km (${(v.km/dkm*100).toFixed(1)}%) · ປະມານ ${fN(v.km*cpk)} ກີບ\n`})}
   const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();
   try{document.execCommand('copy');toast('ສຳເນົາບົດລາຍງານແລ້ວ','ok')}catch(e){toast('ສຳເນົາບໍ່ໄດ້','err')}
   ta.remove()}
@@ -1658,8 +1699,8 @@ function refreshSelects(){
     e.innerHTML=(ph?`<option value="">${ph}</option>`:'')+list.map(x=>`<option>${x}</option>`).join('');
     if(list.includes(c))e.value=c};
   opt('to-plate',PLATES,'— ເລືອກລົດ —');opt('f-plate',PLATES,'— ເລືອກລົດ —');opt('mi-plate',PLATES,'— ເລືອກລົດ —');
-  opt('to-drv',DRIVERS,'— ເລືອກ —');opt('to-dep',DEPTS,'— ເລືອກ —');
-  opt('f-drv',DRIVERS,'— ເລືອກ —');opt('mi-drv',DRIVERS,'— ເລືອກ —');
+  opt('to-dep',DEPTS,'— ເລືອກ —');
+  const dl=$('dl-drv');if(dl)dl.innerHTML=DRIVERS.map(d=>`<option value="${d}">`).join('');
   const hp=$('hf-plate');if(hp){const c=hp.value;
     hp.innerHTML='<option value="">ລົດທັງໝົດ</option>'+PLATES.map(x=>`<option>${x}</option>`).join('');hp.value=c}
 }
