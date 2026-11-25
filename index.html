@@ -633,8 +633,9 @@ const BUCKET='vehicle-photos';
    ໜ້າທີ່ລັອກ: ປະຫວັດ (ແກ້ໄຂ/ລຶບ) ແລະ ຕັ້ງຄ່າຮອບ                */
 const PIN='1234';
 const LOCKED=['hist','set'];
-let UNLOCKED=false;
-try{UNLOCKED=sessionStorage.getItem('ldb_unlock')==='1'}catch(e){}
+let UNLOCKED=false;          /* ບໍ່ຈື່ — ໂຫຼດໃໝ່ເທື່ອໃດ ລັອກຄືນທຸກເທື່ອ */
+const IDLE_MS=180000;        /* ບໍ່ແຕະ 3 ນາທີ → ລັອກເອງ */
+let IDLE_T=null;
 
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
@@ -1003,18 +1004,28 @@ function askPin(next){
 }
 function tryPin(){
   if($('pin-in').value.trim()!==PIN)return toast('ລະຫັດບໍ່ຖືກຕ້ອງ','err');
-  UNLOCKED=true;try{sessionStorage.setItem('ldb_unlock','1')}catch(e){}
+  UNLOCKED=true;resetIdle();
   $('ov-pin').classList.remove('on');markLocks();toast('ປົດລັອກແລ້ວ','ok');
   if(PINNEXT){const n=PINNEXT;PINNEXT=null;go(n)}
 }
-function lockAgain(){
-  UNLOCKED=false;try{sessionStorage.removeItem('ldb_unlock')}catch(e){}
+function lockAgain(quiet){
+  if(!UNLOCKED)return;
+  UNLOCKED=false;clearTimeout(IDLE_T);
   const cur=document.querySelector('.page.on');
   markLocks();
   if(cur&&LOCKED.includes(cur.id.slice(2)))go('home');
-  toast('ລັອກຄືນແລ້ວ','ok');
+  if(!quiet)toast('ລັອກຄືນແລ້ວ','ok');
+}
+function resetIdle(){
+  clearTimeout(IDLE_T);
+  if(!UNLOCKED)return;
+  IDLE_T=setTimeout(()=>{lockAgain(true);toast('ລັອກອັດຕະໂນມັດ (ບໍ່ໄດ້ໃຊ້ງານ 3 ນາທີ)','ok')},IDLE_MS);
 }
 function go(id){
+  const curEl=document.querySelector('.page.on');
+  const curId=curEl?curEl.id.slice(2):null;
+  /* ອອກຈາກໜ້າທີ່ລັອກ → ລັອກຄືນທັນທີ */
+  if(UNLOCKED&&curId&&LOCKED.includes(curId)&&id!==curId){UNLOCKED=false;clearTimeout(IDLE_T)}
   if(LOCKED.includes(id)&&!UNLOCKED){document.body.classList.remove('open');return askPin(id)}
   document.querySelectorAll('.sb-i').forEach(e=>e.classList.toggle('on',e.dataset.p===id));
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('on'));
@@ -1022,6 +1033,7 @@ function go(id){
   $('ptitle').textContent=(PAGES.find(p=>p.id===id)||{}).n||'';
   document.body.classList.remove('open');
   window.scrollTo({top:0,behavior:'smooth'});
+  markLocks();resetIdle();
   if(id==='rep')renderRep();
   if(id==='hist')renderHist();
   if(id==='set')renderSet();
@@ -1764,7 +1776,10 @@ document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>subTab(b.dataset.
 $('pin-ok').onclick=tryPin;
 $('pin-x').onclick=()=>{$('ov-pin').classList.remove('on');PINNEXT=null};
 $('pin-in').onkeydown=e=>{if(e.key==='Enter')tryPin()};
-$('sb-lock').onclick=lockAgain;
+$('sb-lock').onclick=()=>lockAgain();
+document.addEventListener('visibilitychange',()=>{if(document.hidden)lockAgain(true)});
+['click','keydown','touchstart'].forEach(ev=>
+  document.addEventListener(ev,()=>{if(UNLOCKED)resetIdle()},{passive:true}));
 $('burger').onclick=()=>document.body.classList.toggle('open');
 $('mask').onclick=()=>document.body.classList.remove('open');
 $('lb').onclick=()=>$('lb').classList.remove('on');
