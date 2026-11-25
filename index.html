@@ -99,7 +99,9 @@ label{font-size:11px;font-weight:700;color:var(--txt2);display:block;margin-bott
 input,select{width:100%;padding:12px 13px;border-radius:9px;font-size:15px;font-family:var(--font);color:var(--txt);
   background:var(--bg2);border:1.5px solid var(--line);outline:none;-webkit-appearance:none;transition:.18s;min-height:48px}
 select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2393a1b3' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 13px center;background-size:17px;padding-right:38px;font-weight:600}
+  background-repeat:no-repeat;background-position:right 13px center;background-size:17px;padding-right:38px;font-weight:600;
+  line-height:1.75;text-overflow:ellipsis}
+select option{line-height:2;padding:7px 4px;font-weight:500}
 input:focus,select:focus{border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-dim);background:#fff}
 .numwrap{position:relative}
 .numwrap input{padding-right:50px;font-family:var(--mono);font-size:17px;font-weight:700;color:var(--pri)}
@@ -1231,7 +1233,7 @@ function initTrip(){
 function clrTo(){['to-dest','to-odo','to-drv'].forEach(i=>$(i).value='');['to-plate','to-dep'].forEach(i=>$(i).value='');$('to-hint').innerHTML='';setNow('to-date','to-time')}
 function fillTripIn(){
   const op=TRIPS.filter(t=>!t.dtIn);
-  $('ti-trip').innerHTML='<option value="">ເລືອກ</option>'+op.map(t=>`<option value="${t.id}">${full(t.p)}<span class="gp"></span>${t.dest}</option>`).join('');
+  $('ti-trip').innerHTML='<option value="">ເລືອກ</option>'+op.map(t=>`<option value="${t.id}">${full(t.p)} ໄປ ${t.dest}</option>`).join('');
   tiPick()}
 function tiPick(){
   const t=TRIPS.find(x=>x.id==$('ti-trip').value);
@@ -1367,7 +1369,7 @@ function drawMShot(){const b=$('m-shot');
 function fillJobs(){
   const js=MAINT.filter(m=>!m.dout),cur=$('mo-job').value;
   $('mo-job').innerHTML='<option value="">ເລືອກ</option>'+js.map(r=>
-    `<option value="${r.id}">${full(r.p)}<span class="gp"></span>ເຂົ້າ ${fmtD(r.dt)}<span class="gp"></span>${r.shop}</option>`).join('');
+    `<option value="${r.id}">${full(r.p)} ເຂົ້າ ${fmtD(r.dt)} ຢູ່ ${r.shop}</option>`).join('');
   if(js.some(r=>r.id==cur))$('mo-job').value=cur;
   pickJob()}
 function pickJob(){
