@@ -211,7 +211,8 @@ input:focus,select:focus{border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-
 .dcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:9px;box-shadow:var(--sh-s);border-left:4px solid var(--ok)}
 .dcard.w{border-left-color:var(--warn)}.dcard.d{border-left-color:var(--dan)}.dcard.off{border-left-color:var(--line2);opacity:.6}
 .dc-h{display:flex;justify-content:space-between;gap:9px;margin-bottom:8px}
-.dc-n{font-size:12.5px;font-weight:700}
+.dc-n{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+.dc-n .ic{width:15px;height:15px;flex:none}
 .dc-s{font-size:10.5px;color:var(--txt3);margin-top:3px}
 .dc-f{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 .dc-f label{margin:0;font-size:10px}
@@ -372,6 +373,54 @@ input:hover,select:hover{border-color:var(--line2)}
 /* modal */
 .md{border-radius:20px 20px 0 0}
 @media(min-width:760px){.md{border-radius:18px}}
+
+/* ============ ຈັດ LAYOUT ============ */
+@media(max-width:620px){
+  /* ໜ້າຫຼັກມີ 3 ກ່ອງ ວາງແຖວດຽວ ຈະບໍ່ເຫຼືອກ່ອງໂດດ */
+  #p-home .stats{grid-template-columns:repeat(3,1fr);gap:9px}
+  #p-home .stat{padding:12px 10px}
+  #p-home .stat-i{width:28px;height:28px;border-radius:8px;margin-bottom:8px}
+  #p-home .stat-i .ic{width:16px;height:16px}
+  #p-home .stat-v{font-size:22px}
+  #p-home .stat-l{font-size:10px}
+}
+@media(max-width:560px){
+  .row2.stk{display:block}
+  .row2.stk>.fg{margin-bottom:16px}
+  .row-s{white-space:normal;line-height:1.55}
+}
+@media(min-width:621px){
+  .stats{grid-template-columns:repeat(auto-fit,minmax(178px,1fr))}
+}
+@media(min-width:900px){
+  /* ຟອມປ້ອນຂໍ້ມູນ ບໍ່ໃຫ້ຍາວເກີນ */
+  #p-trip .tabx>.card,#p-fuel>.card,#p-maint .tabx>.card{max-width:700px}
+  .seg{max-width:700px}
+  /* ຕົວກອງ: ບັດເຕັມແຖວ ແຕ່ຊ່ອງເລືອກບໍ່ຍືດ */
+  #p-hist .card-b select,#p-alert .card-b select,#p-set .card-b select{max-width:330px}
+  #p-set .srch{max-width:440px}
+  #p-hist .card-b>.row2,#p-rep .card-b>.row2{max-width:480px}
+  /* ແຖບຕົວກອງ ວາງແຖວດຽວ */
+  #p-hist .card-b,#p-set .card-b{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+  #p-hist .card-b>.fg,#p-set .card-b>.fg{margin:0!important;flex:0 0 330px}
+  #p-hist .card-b>.row2{flex:0 0 480px}
+  #p-set .card-b>.srch{flex:1 1 300px;margin:0!important}
+  #p-hist .card-b>.minib{margin:0 0 3px auto!important}
+  .vgrid{grid-template-columns:repeat(3,1fr)}
+  /* ຊ່ອງໃສ່ເລກ ບໍ່ຕ້ອງຍາວເຕັມແຖວ */
+  .card-b>.fg>.numwrap{max-width:280px}
+  .row2 .numwrap{max-width:none}
+  /* ປຸ່ມ ບໍ່ໃຫ້ຍືດເຕັມ */
+  .btns{justify-content:flex-end}
+  .btns .btn{flex:0 1 240px}
+  .btns .btn.ghost{flex:0 0 auto}
+  #r-copy{flex:0 0 auto;align-self:flex-start}
+}
+@media(min-width:1040px){
+  /* ບັດແຈ້ງເຕືອນ ແລະ ຕັ້ງຄ່າຮອບ ວາງສອງຖັນ */
+  #d-list,#s-list{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+  #d-list>.dcard,#s-list>.dcard{margin-bottom:0}
+}
 .md-b{padding:18px 20px}
 .dcell{border-radius:11px;padding:12px}
 
@@ -434,20 +483,20 @@ input:hover,select:hover{border-color:var(--line2)}
       <div class="seg-b on" data-t="trip-out"><span data-ic="car"></span>ອອກເດີນທາງ</div>
       <div class="seg-b" data-t="trip-in"><span data-ic="home"></span>ກັບຄືນ</div>
     </div>
-    <div class="tabx on" id="x-trip-out"><div class="card"><div class="card-b">
+    <div class="tabx on" id="x-trip-out"><div class="card"><div class="card-h"><span data-ic="car"></span>ບັນທຶກການອອກເດີນທາງ</div><div class="card-b">
       <div class="fg"><label class="req">ທະບຽນລົດ</label><select id="to-plate"></select><div class="hint" id="to-hint"></div></div>
       <div class="row2"><div class="fg"><label class="req">ວັນທີ</label><input type="date" id="to-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="to-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
-      <div class="hint" style="margin:-6px 0 14px"><span data-ic="info"></span><span>ວັນທີ/ເວລາຈະຍ່າງຕາມເວລາຈິງ (ຂີດຂຽວຢູ່ຊ້າຍ) ຈົນກວ່າຈະພິມແກ້ເອງ<span class="gp"></span>ພິມ <b>0830</b> → 08:30 AM<span class="gp"></span>ພິມ <b>1430</b> ຫຼື <b>230pm</b> → 02:30 PM</span></div>
-      <div class="row2"><div class="fg"><label class="req">ຄົນຂັບ</label>
+      <div class="hint" style="margin:-6px 0 14px"><span data-ic="info"></span><span>ຖ້າບໍ່ພິມເອງ ເວລາຈະຍ່າງຕາມຈິງ<span class="gp"></span>ພິມ <b>0830</b> → 08:30 AM<span class="gp"></span>ພິມ <b>1430</b> → 02:30 PM</span></div>
+      <div class="row2 stk"><div class="fg"><label class="req">ຄົນຂັບ</label>
           <input type="text" id="to-drv" list="dl-drv" placeholder="ພິມຊື່ເພື່ອຄົ້ນຫາ..." autocomplete="off"></div>
         <div class="fg"><label class="req">ຂະແໜງ</label><select id="to-dep"></select></div></div>
-      <div class="fg"><label class="req">ຈຸດໝາຍ</label><input type="text" id="to-dest" placeholder="ລະບຸສະຖານທີ່..."></div>
-      <div class="fg"><label class="req">ເລກໄມຕອນອອກ</label>
-        <div class="numwrap"><input type="text" id="to-odo" inputmode="numeric" placeholder="0"><span class="unit">km</span></div></div>
+      <div class="row2 stk"><div class="fg"><label class="req">ຈຸດໝາຍ</label><input type="text" id="to-dest" placeholder="ລະບຸສະຖານທີ່..."></div>
+        <div class="fg"><label class="req">ເລກໄມຕອນອອກ</label>
+          <div class="numwrap"><input type="text" id="to-odo" inputmode="numeric" placeholder="0"><span class="unit">km</span></div></div></div>
       <div class="btns"><button class="btn ghost" id="to-clr">ລ້າງ</button><button class="btn pri" id="to-save">ບັນທຶກການອອກ</button></div>
     </div></div></div>
-    <div class="tabx" id="x-trip-in"><div class="card"><div class="card-b">
+    <div class="tabx" id="x-trip-in"><div class="card"><div class="card-h"><span data-ic="home"></span>ບັນທຶກການກັບຄືນ</div><div class="card-b">
       <div class="fg"><label class="req">ລົດທີ່ອອກຢູ່</label><select id="ti-trip"></select><div class="hint" id="ti-hint"></div></div>
       <div class="row2"><div class="fg"><label class="req">ວັນທີ</label><input type="date" id="ti-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="ti-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
@@ -467,11 +516,11 @@ input:hover,select:hover{border-color:var(--line2)}
       <div class="fg"><label class="req">ທະບຽນລົດ</label><select id="f-plate"></select><div class="hint" id="f-hint"></div></div>
       <div class="row2"><div class="fg"><label class="req">ວັນທີ</label><input type="date" id="f-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="f-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
-      <div class="fg"><label class="req">ຜູ້ໄປຕື່ມ</label>
-        <input type="text" id="f-drv" list="dl-drv" placeholder="ພິມຊື່ເພື່ອຄົ້ນຫາ..." autocomplete="off"></div>
+      <div class="row2 stk"><div class="fg"><label class="req">ຜູ້ໄປຕື່ມ</label>
+          <input type="text" id="f-drv" list="dl-drv" placeholder="ພິມຊື່ເພື່ອຄົ້ນຫາ..." autocomplete="off"></div>
+        <div class="fg"><label class="req">ເລກໄມຕອນຢູ່ປັ໊ມ</label>
+          <div class="numwrap"><input type="text" id="f-odo" inputmode="numeric" placeholder="0"><span class="unit">km</span></div></div></div>
       <div class="fg"><label class="req">ປະເພດນ້ຳມັນ</label><div class="chips" id="f-type" style="grid-template-columns:repeat(3,1fr)"></div></div>
-      <div class="fg"><label class="req">ເລກໄມຕອນຢູ່ປັ໊ມ</label>
-        <div class="numwrap"><input type="text" id="f-odo" inputmode="numeric" placeholder="0"><span class="unit">km</span></div></div>
       <div class="row2">
         <div class="fg"><label class="req">ຈຳນວນລິດ</label>
           <div class="numwrap"><input type="number" id="f-lit" step="0.01" inputmode="decimal" placeholder="0"><span class="unit">L</span></div></div>
@@ -495,19 +544,19 @@ input:hover,select:hover{border-color:var(--line2)}
       <div class="seg-b on" data-t="m-in"><span data-ic="wrench"></span>ສົ່ງເຂົ້າແປງ</div>
       <div class="seg-b" data-t="m-out"><span data-ic="check"></span>ຮັບລົດຄືນ</div>
     </div>
-    <div class="tabx on" id="x-m-in"><div class="card"><div class="card-b">
+    <div class="tabx on" id="x-m-in"><div class="card"><div class="card-h"><span data-ic="wrench"></span>ສົ່ງລົດເຂົ້າແປງ</div><div class="card-b">
       <div class="fg"><label class="req">ທະບຽນລົດ</label><select id="mi-plate"></select><div class="hint" id="mi-hint"></div></div>
       <div class="row2"><div class="fg"><label class="req">ວັນທີເຂົ້າ</label><input type="date" id="mi-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="mi-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
-      <div class="fg"><label class="req">ຈຸດບໍລິການ</label><div class="chips" id="mi-shop" style="grid-template-columns:1fr 1fr"></div></div>
-      <div class="fg"><label class="req">ຜູ້ນຳລົດໄປສ້ອມ</label>
-        <input type="text" id="mi-drv" list="dl-drv" placeholder="ພິມຊື່ເພື່ອຄົ້ນຫາ..." autocomplete="off"></div>
-      <div class="fg"><label class="req">ເລກໄມຕອນສົ່ງ</label>
-        <div class="numwrap"><input type="text" id="mi-odo" inputmode="numeric" placeholder="0"><span class="unit">km</span></div></div>
-      <div class="fg"><label>ອາການ / ໝາຍເຫດ</label><input type="text" id="mi-note" placeholder="ເຊັ່ນ ມີສຽງດັງຊ່ວງລ່າງ"></div>
+      <div class="row2 stk"><div class="fg"><label class="req">ຈຸດບໍລິການ</label><div class="chips" id="mi-shop" style="grid-template-columns:1fr 1fr"></div></div>
+        <div class="fg"><label class="req">ຜູ້ນຳລົດໄປສ້ອມ</label>
+          <input type="text" id="mi-drv" list="dl-drv" placeholder="ພິມຊື່ເພື່ອຄົ້ນຫາ..." autocomplete="off"></div></div>
+      <div class="row2 stk"><div class="fg"><label class="req">ເລກໄມຕອນສົ່ງ</label>
+          <div class="numwrap"><input type="text" id="mi-odo" inputmode="numeric" placeholder="0"><span class="unit">km</span></div></div>
+        <div class="fg"><label>ອາການ / ໝາຍເຫດ</label><input type="text" id="mi-note" placeholder="ເຊັ່ນ ມີສຽງດັງຊ່ວງລ່າງ"></div></div>
       <div class="btns"><button class="btn ghost" id="mi-clr">ລ້າງ</button><button class="btn pri" id="mi-save">ສົ່ງເຂົ້າແປງ</button></div>
     </div></div></div>
-    <div class="tabx" id="x-m-out"><div class="card"><div class="card-b">
+    <div class="tabx" id="x-m-out"><div class="card"><div class="card-h"><span data-ic="check"></span>ຮັບລົດຄືນ ພ້ອມບິນຄ່າໃຊ້ຈ່າຍ</div><div class="card-b">
       <div class="fg"><label class="req">ລົດທີ່ກຳລັງສ້ອມ</label><select id="mo-job"></select><div class="hint" id="mo-hint"></div></div>
       <div class="row2"><div class="fg"><label class="req">ວັນທີຮັບຄືນ</label><input type="date" id="mo-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="mo-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
@@ -575,7 +624,7 @@ input:hover,select:hover{border-color:var(--line2)}
       <div class="row2"><div class="fg" style="margin:0"><label>ຈາກວັນທີ</label><input type="date" id="r-from"></div>
         <div class="fg" style="margin:0"><label>ຫາວັນທີ</label><input type="date" id="r-to"></div></div>
     </div></div>
-    <div class="stats" style="grid-template-columns:repeat(3,1fr)" id="r-stats"></div>
+    <div class="stats" id="r-stats"></div>
     <div class="card"><div class="card-h"><span data-ic="chart"></span>ສະຫຼຸບແຍກລາຍຄັນ</div>
       <div style="overflow-x:auto"><table class="rtab" id="r-tab"></table></div></div>
     <div class="card"><div class="card-h"><span data-ic="building"></span>ການນຳໃຊ້ແຍກຕາມຂະແໜງ</div>
