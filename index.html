@@ -447,6 +447,18 @@ label{font-weight:600;color:var(--txt3)}
 .rtab td:first-child{display:table-cell;vertical-align:middle}
 .rtab td:first-child .ic{display:inline-block;vertical-align:-4px;margin-right:7px}
 
+/* ============ ຕົວກັນພາດ ============ */
+#ask-b{font-size:13.5px;line-height:1.75;color:var(--ink)}
+#ask-b b{font-family:var(--drum);font-size:19px;font-weight:600}
+#ask-b .warnbox{border-left:4px solid var(--ochre);background:var(--warn-dim);padding:11px 14px;border-radius:4px;margin-top:12px}
+#ask-b .q{color:var(--txt3);margin-top:12px}
+.recent5{margin-top:-6px;margin-bottom:16px;border-top:1px solid var(--rule)}
+.recent5 .r5{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--rule);font-size:12px}
+.recent5 .r5 .d{font-family:var(--drum);font-size:15px;color:var(--txt3);min-width:46px}
+.recent5 .r5 .k{font-family:var(--drum);font-size:15px;color:var(--ink);font-weight:600}
+.recent5 .r5 .m{flex:1;color:var(--txt2)}
+.recent5 .h5{font-size:11px;color:var(--txt3);font-weight:600;padding:9px 2px 6px}
+
 /* ============ ເຂົ້າເຖິງໄດ້ (WCAG 2.1 AA) ============ */
 /* ຂອບຊ່ອງປ້ອນ ຕ້ອງຕັດກັນ 3:1 (1.4.11) — ເສັ້ນບັນທັດບໍ່ແມ່ນສ່ວນຄວບຄຸມ ຈຶ່ງອ່ອນໄດ້ */
 input,select,textarea,.ibox,.srch input{border-color:#7e8fa3}
@@ -698,6 +710,7 @@ h2.sec-t,h2.lgh{font-family:var(--serif);font-size:13.5px;font-weight:600}
     <div class="psub">ບັນທຶກການຕື່ມນ້ຳມັນ ແລະ ອັດຕາສິ້ນເປືອງ</div>
     <div class="card"><div class="card-h"><span data-ic="fuel"></span>ບັນທຶກການຕື່ມນ້ຳມັນ</div><div class="card-b">
       <div class="fg"><label class="req">ທະບຽນລົດ</label><select id="f-plate"></select><div class="hint" id="f-hint"></div></div>
+      <div class="recent5" id="f-recent" style="display:none"></div>
       <div class="row2"><div class="fg"><label class="req">ວັນທີ</label><input type="date" id="f-date"></div>
         <div class="fg"><label class="req">ເວລາ</label><input type="text" id="f-time" inputmode="numeric" maxlength="8" placeholder="00:00 AM" autocomplete="off"></div></div>
       <div class="row2 stk"><div class="fg"><label class="req">ຜູ້ໄປຕື່ມ</label>
@@ -829,6 +842,11 @@ h2.sec-t,h2.lgh{font-family:var(--serif);font-size:13.5px;font-weight:600}
   <div class="md-f" id="dt-foot2" style="display:none">
     <button class="btn ghost" id="ed-cancel">ຍົກເລີກ</button>
     <button class="btn ok" id="ed-save">ບັນທຶກ</button></div>
+</div></div>
+<div class="ov" id="ov-ask"><div class="md" style="max-width:440px;margin:auto;border-radius:12px;width:calc(100% - 36px)" role="alertdialog" aria-modal="true" aria-labelledby="ask-t" tabindex="-1">
+  <div class="md-h"><div class="md-t" id="ask-t">ກວດເບິ່ງກ່ອນ</div></div>
+  <div class="md-b" id="ask-b"></div>
+  <div class="md-f"><button class="btn ghost" id="ask-no">ກັບໄປແກ້</button><button class="btn pri" id="ask-yes">ຖືກແລ້ວ ບັນທຶກເລີຍ</button></div>
 </div></div>
 <div class="ov" id="ov-pin"><div class="md" style="max-width:380px;border-radius:18px;margin:auto;width:calc(100% - 36px)">
   <div class="md-b" style="text-align:center;padding:28px 22px">
@@ -1344,7 +1362,11 @@ function renderHome(){
   const ds=allDues(),bad=ds.filter(x=>x.st==='d'),warn=ds.length-bad.length;
   const note=(cls,k,t,g)=>`<div class="note ${cls}" tabindex="0" data-go="${g}">
       <span class="note-k">${k}</span><span class="note-t">${t}</span></div>`;
+  const stale=TRIPS.filter(t=>!t.dtIn&&(Date.now()-new Date(t.dt))/36e5>=24);
   const ns=[
+    stale.length?note('d','ລືມປິດ',
+      stale.length===1?`${full(stale[0].p)} ອອກຕັ້ງແຕ່ ${fmtD(stale[0].dt)} ຍັງບໍ່ໄດ້ບັນທຶກການກັບ`
+                      :`ມີ ${stale.length} ຄັນ ອອກເກີນ 1 ມື້ແລ້ວ ຍັງບໍ່ໄດ້ບັນທຶກການກັບ`,'trip'):'',
     bad.length?note('d','ເກີນກຳນົດ',`ບຳລຸງຮັກສາ ${bad.length} ລາຍການ ລໍຖ້າສົ່ງແປງ`,'alert'):'',
     warn?note('w','ໃກ້ຮອດ',`ບຳລຸງຮັກສາ ${warn} ລາຍການ ຄວນກຽມແຜນ`,'alert'):''
   ].filter(Boolean).join('');
@@ -1422,11 +1444,13 @@ function initTrip(){
     if(!$('to-dep').value)return toast('ເລືອກຂະແໜງ','err');
     if(!$('to-dest').value.trim())return toast('ໃສ່ຈຸດໝາຍ','err');
     if(!o)return toast('ໃສ່ເລກໄມ','err');
+    const w=odoWarn(p,o);
+    (async()=>{ if(w&&!await ask(w+Q))return;
     run(async()=>{
       const{error}=await sb.from('vehicle_mileage').insert({id:String(nid()),plate:p,
         out_dt:l2i($('to-date').value,getTime($('to-time'))),driver:drv,
         dept:$('to-dep').value,dest:$('to-dest').value.trim(),out_km:o,status:'out'});
-      if(error)throw error;clrTo()},full(p)+' ອອກເດີນທາງແລ້ວ')};
+      if(error)throw error;clrTo()},full(p)+' ອອກເດີນທາງແລ້ວ')})()};
   $('to-clr').onclick=clrTo;
   $('ti-trip').onchange=tiPick;
   $('ti-save').onclick=()=>{
@@ -1435,12 +1459,21 @@ function initTrip(){
     if(!i)return toast('ໃສ່ເລກໄມ','err');
     if(i<t.o)return toast('ເລກໄມຕ້ອງຫຼາຍກວ່າຕອນອອກ','err');
     if(!okT(getTime($('ti-time'))))return toast('ໃສ່ເວລາໃຫ້ຖືກ (ຊມ:ນທ)','err');
+    const iso=l2i($('ti-date').value,getTime($('ti-time')));
+    if(new Date(iso)<new Date(t.dt))
+      return toast(`ເວລາກັບຕ້ອງຫຼັງເວລາອອກ (${fmtDT(t.dt)})`,'err');
+    const dkm=i-t.o;
+    const wi=dkm>JUMP_MAX
+      ?`ໄລຍະເທື່ອນີ້ <b>${fN(dkm)}</b> km (ອອກ ${fN(t.o)} ກັບ ${fN(i)})
+        <div class="warnbox">ໄກຜິດປົກກະຕິ ກວດເບິ່ງວ່າພິມເກີນໂຕບໍ</div>`
+      :odoWarn(t.p,i);
+    (async()=>{ if(wi&&!await ask(wi+Q))return;
     run(async()=>{
       const{error}=await sb.from('vehicle_mileage').update({in_dt:l2i($('ti-date').value,getTime($('ti-time'))),
         in_km:i,dist:i-t.o,status:'complete'}).eq('id',t.id);
       if(error)throw error;
       $('ti-odo').value='';$('ti-calc').innerHTML='';setNow('ti-date','ti-time')},
-      `ກັບຄືນແລ້ວ ແລ່ນໄປ ${fN(i-t.o)} km`)};
+      `ກັບຄືນແລ້ວ ແລ່ນໄປ ${fN(i-t.o)} km`)})()};
   $('ti-clr').onclick=()=>{$('ti-odo').value='';$('ti-calc').innerHTML=''};
   fillTripIn();
 }
@@ -1481,7 +1514,8 @@ function initFuel(){
     FT=(last&&last.ft)||V[p].ft;
     $('f-type').querySelectorAll('.ch').forEach(x=>{const on=x.dataset.f===FT;x.classList.toggle('on',on);x.style.background=on?FTYPE[FT].c:''});
     h.innerHTML=last?`${svg('info')}<span>ຕື່ມເທື່ອກ່ອນ ${fmtD(last.dt)}<span class="gp"></span>ເລກໄມ <b>${fN(last.o)}</b> km<span class="gp"></span><b>${f1(last.lit)}</b> L</span>`
-      :`${svg('info')}<span>ຍັງບໍ່ມີປະຫວັດການຕື່ມ</span>`;fCalc()};
+      :`${svg('info')}<span>ຍັງບໍ່ມີປະຫວັດການຕື່ມ</span>`;
+    drawF5(p);fCalc()};
   $('f-shot').onclick=e=>{if(e.target.closest('.shot-x'))return;if(FIMG)return openLB(FIMG);$('f-file').click()};
   $('f-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;FIMG=await shrink(f);drawFShot();e.target.value=''};
   $('f-save').onclick=saveFuel;$('f-clr').onclick=clrFuel;
@@ -1492,6 +1526,16 @@ function drawFShot(){const b=$('f-shot');
     b.querySelector('.shot-x').onclick=e=>{e.stopPropagation();FIMG=null;drawFShot()}}
   else{b.classList.remove('has');b.innerHTML=`<span data-ic="receipt"></span><span class="shot-t">ຖ່າຍໃບບິນ</span>`}
   paint(b)}
+/* ບິນ 5 ໃບລ່າສຸດ ກັນປ້ອນຊ້ຳຕອນປ້ອນຍ້ອນຫຼັງ */
+function drawF5(p){
+  const e=$('f-recent');if(!e)return;
+  const l=FUEL.filter(f=>f.p===p).sort((a,b)=>new Date(b.dt)-new Date(a.dt)).slice(0,5);
+  if(!l.length){e.style.display='none';return}
+  e.style.display='';
+  e.innerHTML='<div class="h5">ບິນລ່າສຸດຂອງ '+full(p)+' ກວດກ່ອນວ່າໃບນີ້ລົງແລ້ວບໍ</div>'+
+    l.map(f=>`<div class="r5"><span class="d">${fmtD(f.dt).slice(0,5)}</span>
+      <span class="k">${fN(f.o)}</span><span class="m">${f1(f.lit)} L<span class="gp"></span>${fN(f.amt)} ກີບ</span></div>`).join('');
+}
 function prevFuel(p,o){const l=FUEL.filter(f=>f.p===p&&f.o<o).sort((a,b)=>a.o-b.o);return l[l.length-1]||null}
 function fCalc(){
   const p=$('f-plate').value,o=unfmt($('f-odo').value),lit=+$('f-lit').value,amt=unfmt($('f-amt').value);
@@ -1512,13 +1556,24 @@ function saveFuel(){
   const fdrv=pickDrv('f-drv');
   if(!fdrv)return toast(fdrv===null?'ບໍ່ພົບຊື່ນີ້ ຫຼື ກົງຫຼາຍຄົນ ໃຫ້ພິມຊື່ຄົບກວ່ານີ້':'ໃສ່ຊື່ຜູ້ໄປຕື່ມ','err');
   const pv=prevFuel(p,o);
+  const dupF=FUEL.filter(f=>f.p===p&&f.o===o);
+  const ppl=amt/lit;
+  let w='';
+  if(dupF.length)w+=`ມີບິນຂອງ ${full(p)} <u>ເລກໄມ ${fN(o)} km</u> ຢູ່ໃນລະບົບແລ້ວ
+    <div class="warnbox">${dupF.map(f=>`${fmtD(f.dt)}<span class="gp"></span>${f1(f.lit)} L<span class="gp"></span>${fN(f.amt)} ກີບ`).join('<br>')}
+    <div style="margin-top:7px">ຖ້າແມ່ນບິນດຽວກັນ ຢ່າບັນທຶກຊ້ຳ</div></div>`;
+  if(ppl<PPL_MIN||ppl>PPL_MAX)w+=`${w?'<div style="height:12px"></div>':''}ລາຄາຕໍ່ລິດອອກມາເປັນ <b>${fN(Math.round(ppl))}</b> ກີບ
+    <div class="warnbox">ປົກກະຕິຢູ່ລະຫວ່າງ ${fN(PPL_MIN)} ຫາ ${fN(PPL_MAX)} ກີບ/ລິດ
+    <div style="margin-top:7px">ກວດເບິ່ງວ່າໃສ່ຍອດລວມ ບໍ່ແມ່ນລາຄາຕໍ່ລິດ</div></div>`;
+  const wo=odoWarn(p,o);if(wo)w+=(w?'<div style="height:12px"></div>':'')+wo;
+  (async()=>{ if(w&&!await ask(w+Q))return;
   run(async()=>{
     const url=await upImg(FIMG,'fuel');
     const{error}=await sb.from('fuel_logs').insert({id:nid(),plate:p,
       filled_at:l2i($('f-date').value,getTime($('f-time'))),fuel_type:FT,odo_km:o,
       liters:lit,amount:amt,img_url:url,driver:fdrv});
     if(error)throw error;clrFuel()},
-    pv&&o>pv.o?`ບັນທຶກແລ້ວ ໄດ້ ${f1((o-pv.o)/lit)} km/L`:'ບັນທຶກແລ້ວ')}
+    pv&&o>pv.o?`ບັນທຶກແລ້ວ ໄດ້ ${f1((o-pv.o)/lit)} km/L`:'ບັນທຶກແລ້ວ')})()}
 function clrFuel(){['f-odo','f-lit','f-amt'].forEach(i=>$(i).value='');$('f-plate').value='';$('f-drv').value='';FT='';FIMG=null;
   $('f-type').querySelectorAll('.ch').forEach(x=>{x.classList.remove('on');x.style.background=''});
   $('f-hint').innerHTML='';$('f-calc').innerHTML='';drawFShot();setNow('f-date','f-time')}
@@ -1559,11 +1614,13 @@ function initMaint(){
     if(!okT(getTime($('mi-time'))))return toast('ໃສ່ເວລາໃຫ້ຖືກ (ຊມ:ນທ)','err');
     const mdrv=pickDrv('mi-drv');
     if(!mdrv)return toast(mdrv===null?'ບໍ່ພົບຊື່ນີ້ ຫຼື ກົງຫຼາຍຄົນ ໃຫ້ພິມຊື່ຄົບກວ່ານີ້':'ໃສ່ຊື່ຜູ້ນຳລົດໄປສ້ອມ','err');
+    const wm=odoWarn(p,o);
+    (async()=>{ if(wm&&!await ask(wm+Q))return;
     run(async()=>{
       const{error}=await sb.from('maint_logs').insert({id:nid(),plate:p,date_in:$('mi-date').value,
         time_in:getTime($('mi-time')),shop:MSHOP,odo_in:o,driver:mdrv,
         note:$('mi-note').value.trim()||null});
-      if(error)throw error;clrMi()},full(p)+' ສົ່ງເຂົ້າແປງແລ້ວ')};
+      if(error)throw error;clrMi()},full(p)+' ສົ່ງເຂົ້າແປງແລ້ວ')})()};
   $('mi-clr').onclick=clrMi;
   $('mo-job').onchange=pickJob;
   $('m-shot').onclick=e=>{if(e.target.closest('.shot-x'))return;if(MIMG)return openLB(MIMG);$('m-file').click()};
@@ -1632,9 +1689,13 @@ function saveMo(){
   if(!MSEL.length)return toast('ຕິກລາຍການທີ່ແປງ','err');
   if(!s.t)return toast('ໃສ່ມູນຄ່າ','err');
   if(!okT(getTime($('mo-time'))))return toast('ໃສ່ເວລາໃຫ້ຖືກ (ຊມ:ນທ)','err');
+  if(new Date($('mo-date').value)<new Date(String(r.dt).slice(0,10)))
+    return toast(`ວັນທີຮັບຄືນຕ້ອງຫຼັງວັນທີສົ່ງເຂົ້າ (${fmtD(r.dt)})`,'err');
+  const wq=odoWarn(r.p,o);
   const costs={};MSEL.forEach(id=>costs[id]={p:unfmt(MPART[id]),l:0});
   if(s.l)MSEL.forEach(id=>costs[id].l=s.p>0?s.l*(costs[id].p/s.p):s.l/MSEL.length);
   const next={};
+  (async()=>{ if(wq&&!await ask(wq+Q))return;
   run(async()=>{
     const url=await upImg(MIMG,'maint');
     const{error}=await sb.from('maint_logs').update({date_out:$('mo-date').value,
@@ -1645,7 +1706,7 @@ function saveMo(){
     await sb.from('maint_log_items').delete().eq('log_id',r.id);
     const rows=MSEL.map(id=>({log_id:r.id,item_id:id,parts_cost:Math.round(costs[id].p),labor_cost:Math.round(costs[id].l)}));
     if(rows.length){const e2=await sb.from('maint_log_items').insert(rows);if(e2.error)throw e2.error}
-    clrMo()},`${full(r.p)} ຮັບຄືນແລ້ວ ລວມ ${fN(s.t)} ກີບ`)}
+    clrMo()},`${full(r.p)} ຮັບຄືນແລ້ວ ລວມ ${fN(s.t)} ກີບ`)})()}
 function clrMo(){$('mo-job').value='';['mo-odo','mo-lab','mo-note','mo-srch'].forEach(i=>$(i).value='');
   MSEL=[];MPART={};MQ='';MCAT=0;MIMG=null;drawMCats();drawMItems();drawMCost();mGrand();drawMShot();
   $('mo-hint').innerHTML='';setNow('mo-date','mo-time')}
@@ -1755,6 +1816,31 @@ function renderHist(){
   ['hl-trip','hl-fuel','hl-maint'].forEach(c=>$(c).querySelectorAll('.hrow')
     .forEach(r=>r.onclick=()=>openDetail(r.dataset.k,r.dataset.id)));
 }
+/* ===== ຕົວກັນພາດ ===== */
+const JUMP_MAX=1500;        /* ໄລຍະຕໍ່ເທື່ອ ເກີນນີ້ຕ້ອງຢືນຢັນ */
+const PPL_MIN=20000,PPL_MAX=45000;   /* ລາຄານ້ຳມັນຕໍ່ລິດ ທີ່ເປັນໄປໄດ້ */
+function ask(html){
+  return new Promise(res=>{
+    $('ask-b').innerHTML=html;$('ov-ask').classList.add('on');dlgOpen('ov-ask');
+    const done=v=>{$('ov-ask').classList.remove('on');dlgClose();
+      $('ask-yes').onclick=$('ask-no').onclick=null;document.removeEventListener('keydown',esc);res(v)};
+    const esc=e=>{if(e.key==='Escape'){e.stopPropagation();done(false)}};
+    $('ask-yes').onclick=()=>done(true);$('ask-no').onclick=()=>done(false);
+    document.addEventListener('keydown',esc);
+  });
+}
+/* ກວດເລກໄມ: ຕ່ຳກວ່າເລກລ່າສຸດ ຫຼື ກະໂດດສູງຜິດປົກກະຕິ */
+function odoWarn(p,km){
+  const last=odoOf(p);
+  if(last==null||!isFinite(last)||km==null)return null;
+  if(km<last-1)return `ເລກໄມທີ່ປ້ອນ <b>${fN(km)}</b> km <u>ຕ່ຳກວ່າ</u> ເລກລ່າສຸດຂອງ ${full(p)} ທີ່ <b>${fN(last)}</b> km
+    <div class="warnbox">ຕ່ຳກວ່າ ${fN(last-km)} km ເລກໄມບໍ່ຄວນຍ້ອນຫຼັງ</div>`;
+  if(km-last>JUMP_MAX)return `ເລກໄມທີ່ປ້ອນ <b>${fN(km)}</b> km ສູງກວ່າເລກລ່າສຸດ <b>${fN(last)}</b> km ຂອງ ${full(p)}
+    <div class="warnbox">ຫ່າງກັນ ${fN(km-last)} km ກວດເບິ່ງວ່າພິມເກີນໂຕບໍ</div>`;
+  return null;
+}
+const Q='<div class="q">ຖ້າແນ່ໃຈວ່າຖືກ ກົດບັນທຶກໄດ້ເລີຍ</div>';
+
 /* ===== ເຂົ້າເຖິງໄດ້: ຜູກປ້າຍ ແລະ ກົດດ້ວຍແປ້ນ ===== */
 let A11N=0;
 function linkLabels(root){
