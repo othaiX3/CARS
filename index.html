@@ -1364,7 +1364,7 @@ function renderHome(){
       <span class="note-k">${k}</span><span class="note-t">${t}</span></div>`;
   const stale=TRIPS.filter(t=>!t.dtIn&&(Date.now()-new Date(t.dt))/36e5>=24);
   const ns=[
-    stale.length?note('d','ລືມປິດ',
+    stale.length?note('d','ລືມປ້ອນເລກໄມຕອນກັບ',
       stale.length===1?`${full(stale[0].p)} ອອກຕັ້ງແຕ່ ${fmtD(stale[0].dt)} ຍັງບໍ່ໄດ້ບັນທຶກການກັບ`
                       :`ມີ ${stale.length} ຄັນ ອອກເກີນ 1 ມື້ແລ້ວ ຍັງບໍ່ໄດ້ບັນທຶກການກັບ`,'trip'):'',
     bad.length?note('d','ເກີນກຳນົດ',`ບຳລຸງຮັກສາ ${bad.length} ລາຍການ ລໍຖ້າສົ່ງແປງ`,'alert'):'',
